@@ -1,0 +1,6 @@
+{
+  "name": "Procurement and Warehouse System",
+  "description": "Complete procurement workflow and warehouse management system with user login authentication, administrator control portal, stock tracking, purchase orders, goods receipt (GRN), and audit analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
