@@ -1,6 +1,8 @@
 {
-  "name": "Procurement and Warehouse System",
-  "description": "Complete procurement workflow and warehouse management system with user login authentication, administrator control portal, stock tracking, purchase orders, goods receipt (GRN), and audit analytics.",
+  "name": "Karachi Transport Service Procurement & Warehouse",
+  "description": "Enterprise Fleet Procurement & Multi-Bay Central Warehouse Management System for Karachi Transport Service (KTS), managing transit bus spare parts, purchase requisitions, PO lifecycle, goods receipts (GRN), security gate passes, and audit compliance.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

@@ -17,15 +17,21 @@ import {
   Sun,
   Moon,
   FileSpreadsheet,
-  FileText
+  FileText,
+  Truck
 } from 'lucide-react';
 import { useWarehouse } from '../context/WarehouseContext';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { exportToCSV } from '../utils/formatters';
-import { exportInventoryToExcel, exportInventoryToPDF } from '../utils/exportUtils';
+import {
+  exportInventoryToExcel,
+  exportInventoryToPDF,
+  exportGatePassRegisterToExcel,
+  exportGatePassRegisterToPDF
+} from '../utils/exportUtils';
 
-export type TabType = 'dashboard' | 'procurement' | 'warehouse' | 'grn' | 'vendors' | 'audit' | 'admin';
+export type TabType = 'dashboard' | 'procurement' | 'warehouse' | 'issuance' | 'grn' | 'vendors' | 'audit' | 'admin';
 
 interface NavbarProps {
   currentTab: TabType;
@@ -33,7 +39,7 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
-  const { items, purchaseRequisitions, purchaseOrders, resetToDemoData } = useWarehouse();
+  const { items, purchaseRequisitions, purchaseOrders, gatePasses, resetToDemoData } = useWarehouse();
   const { currentUser, users, logout, switchUser } = useAuth();
   const { theme, toggleTheme } = useTheme();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
@@ -57,6 +63,7 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
   const lowStockCount = items.filter(i => i.status === 'low_stock' || i.status === 'out_of_stock').length;
   const pendingPRCount = purchaseRequisitions.filter(pr => pr.status === 'pending').length;
   const activePOCount = purchaseOrders.filter(po => po.status === 'issued' || po.status === 'partially_received').length;
+  const activeRGPCount = gatePasses.filter(gp => gp.passType === 'returnable' && gp.status !== 'returned').length;
 
   const handleExportFullReport = () => {
     const stockReport = items.map(item => ({
@@ -91,6 +98,13 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
       icon: <Warehouse className="w-4 h-4" />,
       badge: lowStockCount,
       badgeColor: 'bg-rose-100 text-rose-800'
+    },
+    {
+      id: 'issuance',
+      label: 'Issuance & Gate Pass',
+      icon: <Truck className="w-4 h-4" />,
+      badge: activeRGPCount > 0 ? activeRGPCount : undefined,
+      badgeColor: 'bg-amber-100 text-amber-800'
     },
     {
       id: 'grn',
@@ -199,6 +213,32 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
                     <div>
                       <div className="font-semibold">Stock Ledger (.pdf)</div>
                       <div className="text-[10px] text-slate-400">Print-ready PDF report</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      exportGatePassRegisterToExcel(gatePasses);
+                      setIsExportMenuOpen(false);
+                    }}
+                    className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-left cursor-pointer"
+                  >
+                    <Truck className="w-4 h-4 text-amber-400" />
+                    <div>
+                      <div className="font-semibold">Gate Pass Register (.xlsx)</div>
+                      <div className="text-[10px] text-slate-400">RGP & NRGP issuance ledger</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      exportGatePassRegisterToPDF(gatePasses);
+                      setIsExportMenuOpen(false);
+                    }}
+                    className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-left cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4 text-indigo-400" />
+                    <div>
+                      <div className="font-semibold">Gate Pass Register (.pdf)</div>
+                      <div className="text-[10px] text-slate-400">Security gate dispatch log</div>
                     </div>
                   </button>
                   <button

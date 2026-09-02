@@ -1,6 +1,6 @@
 import * as XLSX from 'xlsx';
 import { jsPDF } from 'jspdf';
-import { PurchaseOrder, PurchaseRequisition, InventoryItem, Vendor, GoodsReceiptNote, SecurityLog } from '../types';
+import { PurchaseOrder, PurchaseRequisition, InventoryItem, Vendor, GoodsReceiptNote, SecurityLog, StockIssuanceGatePass } from '../types';
 import { formatCurrency, formatNumber } from './formatters';
 
 // -------------------------------------------------------------
@@ -410,4 +410,318 @@ export const exportAuditLogsToPDF = (logs: SecurityLog[]) => {
     ]
   });
 };
+
+// -------------------------------------------------------------
+// GATE PASS & STOCK ISSUANCE EXPORTS
+// -------------------------------------------------------------
+export const exportGatePassPDF = (
+  gp: StockIssuanceGatePass,
+  companyName: string = 'PROWAREHOUSE LOGISTICS & INDUSTRIAL HUB'
+) => {
+  const doc = new jsPDF({
+    orientation: 'portrait',
+    unit: 'pt',
+    format: 'a4'
+  });
+
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const margin = 36;
+  const usableWidth = pageWidth - margin * 2;
+  const isReturnable = gp.passType === 'returnable';
+
+  // Header Banner
+  doc.setFillColor(isReturnable ? 15 : 30, isReturnable ? 23 : 41, isReturnable ? 42 : 59); // deep slate
+  doc.rect(0, 0, pageWidth, 68, 'F');
+
+  // Decorative accent line
+  doc.setFillColor(isReturnable ? 245 : 99, isReturnable ? 158 : 102, isReturnable ? 11 : 241); // amber for RGP, indigo for NRGP
+  doc.rect(0, 65, pageWidth, 3, 'F');
+
+  // Title
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(16);
+  doc.setFont('helvetica', 'bold');
+  doc.text(companyName.toUpperCase(), margin, 28);
+
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(203, 213, 225);
+  doc.text('CENTRAL WAREHOUSE & MATERIAL MANAGEMENT • OFFICIAL OUTWARD PASS', margin, 44);
+
+  // Pass Type Badge in top right
+  const badgeText = isReturnable ? 'RETURNABLE GATE PASS (RGP)' : 'NON-RETURNABLE GATE PASS (NRGP)';
+  doc.setFontSize(9);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(isReturnable ? 251 : 199, isReturnable ? 191 : 210, isReturnable ? 36 : 254);
+  doc.text(badgeText, pageWidth - margin, 32, { align: 'right' });
+
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(148, 163, 184);
+  doc.text(`Status: ${gp.status.toUpperCase().replace(/_/g, ' ')}`, pageWidth - margin, 46, { align: 'right' });
+
+  let y = 84;
+
+  // Key Identifiers Box
+  doc.setFillColor(248, 250, 252);
+  doc.setDrawColor(226, 232, 240);
+  doc.roundedRect(margin, y, usableWidth, 80, 4, 4, 'FD');
+
+  // Left Column
+  doc.setFontSize(8);
+  doc.setTextColor(100, 116, 139);
+  doc.setFont('helvetica', 'bold');
+  doc.text('GATE PASS NUMBER:', margin + 12, y + 18);
+  doc.text('ISSUANCE REF #:', margin + 12, y + 33);
+  doc.text('ISSUE DATE & TIME:', margin + 12, y + 48);
+  doc.text('RECIPIENT / DEPT:', margin + 12, y + 63);
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.text(gp.gatePassNumber, margin + 120, y + 18);
+  doc.setFont('helvetica', 'normal');
+  doc.text(gp.issuanceNumber, margin + 120, y + 33);
+  doc.text(gp.issueDate, margin + 120, y + 48);
+  doc.text(`${gp.department} (${gp.issuedTo})`, margin + 120, y + 63);
+
+  // Right Column
+  const midX = margin + usableWidth / 2 + 10;
+  doc.setTextColor(100, 116, 139);
+  doc.setFont('helvetica', 'bold');
+  doc.text('VEHICLE REG #:', midX, y + 18);
+  doc.text('CARRIER / DRIVER:', midX, y + 33);
+  doc.text('DRIVER CNIC / ID:', midX, y + 48);
+  doc.text(isReturnable ? 'EXPECTED RETURN:' : 'PASS CATEGORY:', midX, y + 63);
+
+  doc.setTextColor(15, 23, 42);
+  doc.setFont('helvetica', 'bold');
+  doc.text(gp.vehicleNumber || 'Internal Hand Carry', midX + 98, y + 18);
+  doc.setFont('helvetica', 'normal');
+  doc.text(gp.carrierName || 'Store Porter', midX + 98, y + 33);
+  doc.text(gp.carrierCnic || 'Verified On-Site', midX + 98, y + 48);
+  doc.setFont('helvetica', isReturnable ? 'bold' : 'normal');
+  if (isReturnable) {
+    doc.setTextColor(180, 83, 9); // dark amber
+    doc.text(gp.expectedReturnDate || 'Within 7 Days', midX + 98, y + 63);
+  } else {
+    doc.text('Non-Returnable (Outward Consumption)', midX + 98, y + 63);
+  }
+
+  y += 94;
+
+  // Purpose / Scope
+  doc.setFontSize(8);
+  doc.setTextColor(71, 85, 105);
+  doc.setFont('helvetica', 'bold');
+  doc.text('PURPOSE / DISPATCH REASON:', margin, y);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(30, 41, 59);
+  doc.text(gp.purpose || 'Material issuance for operational consumption', margin + 140, y);
+
+  y += 16;
+
+  // Table of Items
+  const headers = ['S#', 'SKU Code', 'Description / Item Specifications', 'UOM', 'Qty Issued', 'Remarks / Batch'];
+  const colWidths = [28, 90, 210, 50, 60, 85]; // Sums to 523 (matches usableWidth ~ 523pt)
+
+  // Header row
+  doc.setFillColor(241, 245, 249);
+  doc.rect(margin, y, usableWidth, 20, 'F');
+  doc.setFontSize(8);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(51, 65, 85);
+
+  let currentX = margin + 6;
+  headers.forEach((h, i) => {
+    doc.text(h, currentX, y + 13);
+    currentX += colWidths[i];
+  });
+
+  y += 20;
+
+  // Table Rows
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(8);
+  doc.setTextColor(30, 41, 59);
+
+  let totalQuantity = 0;
+  gp.items.forEach((item, idx) => {
+    totalQuantity += item.quantity;
+    const isEven = idx % 2 === 0;
+    if (isEven) {
+      doc.setFillColor(255, 255, 255);
+    } else {
+      doc.setFillColor(248, 250, 252);
+    }
+    doc.rect(margin, y, usableWidth, 22, 'F');
+    doc.setDrawColor(241, 245, 249);
+    doc.line(margin, y + 22, margin + usableWidth, y + 22);
+
+    let x = margin + 6;
+    // S#
+    doc.text(String(idx + 1), x, y + 14);
+    x += colWidths[0];
+    // SKU
+    doc.setFont('helvetica', 'bold');
+    doc.text(item.sku, x, y + 14);
+    doc.setFont('helvetica', 'normal');
+    x += colWidths[1];
+    // Name (truncate if long)
+    const nameStr = item.itemName.length > 40 ? item.itemName.slice(0, 38) + '..' : item.itemName;
+    doc.text(nameStr, x, y + 14);
+    x += colWidths[2];
+    // UOM
+    doc.text(item.unit || 'Units', x, y + 14);
+    x += colWidths[3];
+    // Qty
+    doc.setFont('helvetica', 'bold');
+    doc.text(String(item.quantity), x, y + 14);
+    doc.setFont('helvetica', 'normal');
+    x += colWidths[4];
+    // Remarks
+    doc.text(item.remarks || 'Standard Issue', x, y + 14);
+
+    y += 22;
+  });
+
+  // Table Total Row
+  doc.setFillColor(241, 245, 249);
+  doc.rect(margin, y, usableWidth, 20, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(15, 23, 42);
+  doc.text('TOTAL ITEMS DISPATCHED:', margin + 6, y + 14);
+  doc.text(`${gp.items.length} Line(s)  •  ${totalQuantity} Total Units`, margin + usableWidth - 140, y + 14, { align: 'right' });
+
+  y += 35;
+
+  // Regulatory Declaration Box
+  doc.setFillColor(254, 252, 232); // light amber
+  doc.setDrawColor(254, 240, 138);
+  doc.roundedRect(margin, y, usableWidth, 38, 3, 3, 'FD');
+
+  doc.setFontSize(7.5);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(133, 77, 14);
+  doc.text('SECURITY & COMPLIANCE DIRECTIVE:', margin + 8, y + 12);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(113, 63, 18);
+  doc.text(
+    isReturnable
+      ? '1. Goods listed above remain property of the company and must be returned on/before the due date in intact condition.\n2. Security Checkpoint must stamp Gate-Out time and record Inward verification upon return.'
+      : '1. No material shall leave the premises without physical inspection by the Main Gate Security Supervisor.\n2. Carrier must preserve this official slip for destination acknowledgment and return one stamped copy to Store Control.',
+    margin + 8,
+    y + 23
+  );
+
+  y += 55;
+
+  // 4 Signature / Stamp Blocks
+  const boxWidth = (usableWidth - 24) / 4;
+  const boxHeight = 70;
+
+  const signBoxes = [
+    { title: 'PREPARED / ISSUED BY', name: gp.issuedBy, role: 'Store Officer' },
+    { title: 'AUTHORIZED BY', name: gp.authorizedBy, role: 'Department Head / Mgr' },
+    { title: 'CARRIER / BEARER', name: gp.carrierName || gp.issuedTo, role: 'Received Goods' },
+    { title: 'GATE SECURITY OFFICER', name: gp.securityOfficer || 'Main Gate Checkpoint', role: gp.gateOutTimestamp ? `Out: ${gp.gateOutTimestamp}` : 'Verified & Inspected' }
+  ];
+
+  signBoxes.forEach((box, i) => {
+    const boxX = margin + i * (boxWidth + 8);
+    doc.setFillColor(255, 255, 255);
+    doc.setDrawColor(203, 213, 225);
+    doc.roundedRect(boxX, y, boxWidth, boxHeight, 3, 3, 'D');
+
+    // Header label
+    doc.setFillColor(241, 245, 249);
+    doc.rect(boxX, y, boxWidth, 16, 'F');
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(71, 85, 105);
+    doc.text(box.title, boxX + boxWidth / 2, y + 11, { align: 'center' });
+
+    // Signature line
+    doc.setDrawColor(203, 213, 225);
+    doc.line(boxX + 8, y + 46, boxX + boxWidth - 8, y + 46);
+
+    // Name & Role
+    doc.setFontSize(7.5);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(15, 23, 42);
+    doc.text(box.name, boxX + boxWidth / 2, y + 56, { align: 'center' });
+
+    doc.setFontSize(6.5);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(100, 116, 139);
+    doc.text(box.role, boxX + boxWidth / 2, y + 65, { align: 'center' });
+  });
+
+  // Footer
+  doc.setFontSize(7.5);
+  doc.setTextColor(148, 163, 184);
+  doc.text(
+    `ProWarehouse ERP • Gate Pass Generated: ${new Date().toLocaleString()} • Document Ref: ${gp.gatePassNumber}`,
+    pageWidth / 2,
+    pageHeight - 16,
+    { align: 'center' }
+  );
+
+  doc.save(`${gp.gatePassNumber}_Official_Gate_Pass.pdf`);
+};
+
+export const exportGatePassRegisterToExcel = (passes: StockIssuanceGatePass[]) => {
+  const data = passes.map(gp => ({
+    'Gate Pass #': gp.gatePassNumber,
+    'Issuance Ref #': gp.issuanceNumber,
+    'Pass Type': gp.passType === 'returnable' ? 'Returnable (RGP)' : 'Non-Returnable (NRGP)',
+    'Status': gp.status.toUpperCase().replace(/_/g, ' '),
+    'Issue Date': gp.issueDate,
+    'Expected Return': gp.expectedReturnDate || 'N/A',
+    'Recipient / Dept': gp.department,
+    'Issued To': gp.issuedTo,
+    'Carrier / Driver': gp.carrierName || 'Store Porter',
+    'Carrier CNIC': gp.carrierCnic || 'N/A',
+    'Vehicle #': gp.vehicleNumber || 'Hand Carry',
+    'Total Items Count': gp.items.length,
+    'Total Units Qty': gp.items.reduce((acc, i) => acc + i.quantity, 0),
+    'Items Summary': gp.items.map(i => `${i.sku} (${i.quantity} ${i.unit})`).join(', '),
+    'Purpose': gp.purpose,
+    'Issued By': gp.issuedBy,
+    'Authorized By': gp.authorizedBy,
+    'Gate Officer': gp.securityOfficer || 'Pending Gate Clearance',
+    'Gate Out Timestamp': gp.gateOutTimestamp || 'Pending Outward',
+    'Gate In Timestamp': gp.gateInTimestamp || 'N/A',
+    'Remarks': gp.remarks || ''
+  }));
+
+  exportToExcel(`Gate_Pass_Register_${new Date().toISOString().split('T')[0]}`, data, 'GatePassRegister');
+};
+
+export const exportGatePassRegisterToPDF = (passes: StockIssuanceGatePass[]) => {
+  const headers = ['Gate Pass #', 'Type', 'Date', 'Recipient / Destination', 'Vehicle #', 'Items Count', 'Status'];
+  const rows = passes.map(gp => [
+    gp.gatePassNumber,
+    gp.passType === 'returnable' ? 'RGP' : 'NRGP',
+    gp.issueDate.split(' ')[0],
+    gp.department.length > 25 ? gp.department.slice(0, 23) + '..' : gp.department,
+    gp.vehicleNumber || 'Hand Carry',
+    `${gp.items.reduce((acc, i) => acc + i.quantity, 0)} Units (${gp.items.length} items)`,
+    gp.status.toUpperCase().replace(/_/g, ' ')
+  ]);
+
+  exportTableToPDF({
+    filename: `Gate_Pass_Register_${new Date().toISOString().split('T')[0]}`,
+    title: 'OFFICIAL GATE PASS & WAREHOUSE ISSUANCE REGISTER',
+    subtitle: `Total Gate Passes: ${passes.length} | Returnable (RGP) & Non-Returnable (NRGP) Dispatches`,
+    headers,
+    rows,
+    summary: [
+      { label: 'Total Issued Passes:', value: `${passes.length} passes` },
+      { label: 'Returnable (RGP):', value: `${passes.filter(p => p.passType === 'returnable').length} active` },
+      { label: 'Cleared Out at Gate:', value: `${passes.filter(p => p.status === 'cleared_at_gate').length} vehicles/bearers` }
+    ]
+  });
+};
+
 

@@ -6,6 +6,7 @@ import { Navbar, TabType } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
 import { ProcurementView } from './components/ProcurementView';
 import { WarehouseView } from './components/WarehouseView';
+import { IssuanceView } from './components/IssuanceView';
 import { GRNView } from './components/GRNView';
 import { VendorView } from './components/VendorView';
 import { AuditLogsView } from './components/AuditLogsView';
@@ -16,6 +17,7 @@ const MainApp: React.FC = () => {
   const { currentUser } = useAuth();
   const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
   const [grnSelectedPOId, setGrnSelectedPOId] = useState<string | null>(null);
+  const [issuanceItemId, setIssuanceItemId] = useState<string | null>(null);
 
   // If not authenticated, present the professional login screen
   if (!currentUser) {
@@ -27,9 +29,17 @@ const MainApp: React.FC = () => {
     setCurrentTab('grn');
   };
 
+  const handleNavigateToIssuance = (itemId?: string) => {
+    setIssuanceItemId(itemId || null);
+    setCurrentTab('issuance');
+  };
+
   const handleSelectTab = (tab: TabType) => {
     if (tab !== 'grn') {
       setGrnSelectedPOId(null);
+    }
+    if (tab !== 'issuance') {
+      setIssuanceItemId(null);
     }
     setCurrentTab(tab);
   };
@@ -43,7 +53,12 @@ const MainApp: React.FC = () => {
         {currentTab === 'procurement' && (
           <ProcurementView onNavigateToGRNWithPO={handleNavigateToGRNWithPO} />
         )}
-        {currentTab === 'warehouse' && <WarehouseView />}
+        {currentTab === 'warehouse' && (
+          <WarehouseView onNavigateToIssuance={handleNavigateToIssuance} />
+        )}
+        {currentTab === 'issuance' && (
+          <IssuanceView preSelectedItemId={issuanceItemId} />
+        )}
         {currentTab === 'grn' && <GRNView initialSelectedPOId={grnSelectedPOId} />}
         {currentTab === 'vendors' && <VendorView />}
         {currentTab === 'audit' && <AuditLogsView />}

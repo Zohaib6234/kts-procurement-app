@@ -179,3 +179,37 @@ html.light .text-purple-300 {
   color: #7e22ce !important;
 }
 
+/* -------------------------------------------------------------
+   PRINT STYLES FOR OFFICIAL GATE PASS VOUCHER
+   ------------------------------------------------------------- */
+@media print {
+  body {
+    background: white !important;
+    color: black !important;
+  }
+  body * {
+    visibility: hidden;
+  }
+  .printable-gatepass,
+  .printable-gatepass * {
+    visibility: visible;
+  }
+  .printable-gatepass {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 24px !important;
+    background: white !important;
+    color: #0f172a !important;
+    box-shadow: none !important;
+    border: 1px solid #cbd5e1 !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+}
+
+

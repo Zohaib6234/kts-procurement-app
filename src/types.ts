@@ -141,10 +141,47 @@ export interface StockMovement {
   quantity: number;
   fromLocation?: string;
   toLocation?: string;
-  referenceNumber: string; // e.g. PO-2026-001 or GRN-2026-004 or ISS-1002
+  referenceNumber: string; // e.g. PO-2026-001 or GRN-2026-004 or ISS-1002 or GP-2026-0042
   date: string;
   performedBy: string;
   reason: string;
+}
+
+export type GatePassType = 'non_returnable' | 'returnable';
+export type GatePassStatus = 'issued' | 'cleared_at_gate' | 'returned' | 'cancelled';
+
+export interface GatePassItem {
+  itemId: string;
+  itemName: string;
+  sku: string;
+  quantity: number;
+  unit: string;
+  unitCost?: number;
+  remarks?: string;
+}
+
+export interface StockIssuanceGatePass {
+  id: string;
+  gatePassNumber: string; // e.g. GP-2026-0042
+  issuanceNumber: string; // e.g. ISS-2026-0105
+  passType: GatePassType; // 'returnable' | 'non_returnable'
+  status: GatePassStatus;
+  issueDate: string;
+  expectedReturnDate?: string;
+  department: string; // Recipient Dept or External Consignee
+  issuedTo: string; // Person receiving or recipient company
+  carrierName?: string; // Driver / Bearer Name
+  carrierCnic?: string; // Driver / Bearer CNIC or ID
+  vehicleNumber?: string; // Vehicle Registration No. (e.g. KHI-8291)
+  purpose: string; // Purpose of issuance
+  warehouseZone?: string;
+  issuedBy: string; // Storekeeper / Warehouse officer
+  authorizedBy: string; // Approving Manager
+  securityOfficer?: string; // Security officer who cleared at gate
+  gateOutTimestamp?: string;
+  gateInTimestamp?: string;
+  items: GatePassItem[];
+  remarks?: string;
 }
 
 export interface WarehouseZone {
@@ -180,7 +217,7 @@ export interface SecurityLog {
   userId?: string;
   userEmail: string;
   userName: string;
-  action: 'login' | 'logout' | 'failed_login' | 'user_created' | 'user_updated' | 'user_deleted' | 'password_reset' | 'settings_updated' | 'database_reset';
+  action: 'login' | 'logout' | 'failed_login' | 'user_created' | 'user_updated' | 'user_deleted' | 'password_reset' | 'settings_updated' | 'database_reset' | 'stock_issued' | 'gatepass_created' | 'gatepass_cleared' | 'gatepass_returned';
   status: 'success' | 'warning' | 'error';
   ipAddress: string;
   details: string;

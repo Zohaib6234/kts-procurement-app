@@ -9,7 +9,9 @@ import {
   WarehouseZone,
   PRStatus,
   POStatus,
-  StockStatus
+  StockStatus,
+  StockIssuanceGatePass,
+  GatePassStatus
 } from '../types';
 import {
   INITIAL_INVENTORY,
@@ -18,7 +20,8 @@ import {
   INITIAL_POS,
   INITIAL_GRNS,
   INITIAL_MOVEMENTS,
-  INITIAL_ZONES
+  INITIAL_ZONES,
+  INITIAL_GATE_PASSES
 } from '../data/initialData';
 
 interface WarehouseContextType {
@@ -52,6 +55,12 @@ interface WarehouseContextType {
   deleteInventoryItem: (id: string) => void;
   issueMaterial: (itemId: string, quantity: number, targetLocation: string, reason: string, user: string) => boolean;
   adjustStock: (itemId: string, newQuantity: number, reason: string, user: string) => void;
+  // Gate Pass & Issuance operations
+  gatePasses: StockIssuanceGatePass[];
+  createGatePass: (data: Omit<StockIssuanceGatePass, 'id' | 'gatePassNumber' | 'issuanceNumber' | 'status'>) => StockIssuanceGatePass;
+  updateGatePassStatus: (id: string, status: GatePassStatus, officerName?: string) => void;
+  deleteGatePass: (id: string) => void;
+  returnGatePassItems: (id: string, returnerName: string, notes?: string) => void;
   // Vendor operations
   addVendor: (vendor: Omit<Vendor, 'id' | 'code' | 'totalSpent'>) => void;
   updateVendor: (id: string, updates: Partial<Vendor>) => void;
@@ -100,6 +109,11 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     return saved ? JSON.parse(saved) : INITIAL_MOVEMENTS;
   });
 
+  const [gatePasses, setGatePasses] = useState<StockIssuanceGatePass[]>(() => {
+    const saved = localStorage.getItem('pms_gatepasses');
+    return saved ? JSON.parse(saved) : INITIAL_GATE_PASSES;
+  });
+
   const [zones] = useState<WarehouseZone[]>(INITIAL_ZONES);
 
   // Sync to localStorage
@@ -126,6 +140,10 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
   useEffect(() => {
     localStorage.setItem('pms_movements', JSON.stringify(movements));
   }, [movements]);
+
+  useEffect(() => {
+    localStorage.setItem('pms_gatepasses', JSON.stringify(gatePasses));
+  }, [gatePasses]);
 
   // Create PR
   const createPR = (prData: Omit<PurchaseRequisition, 'id' | 'prNumber' | 'status' | 'requestDate'>) => {
@@ -532,6 +550,149 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setVendors(prev => prev.filter(v => v.id !== id));
   };
 
+  // Gate Pass & Stock Issuance Operations
+  const createGatePass = (data: Omit<StockIssuanceGatePass, 'id' | 'gatePassNumber' | 'issuanceNumber' | 'status'>): StockIssuanceGatePass => {
+    const year = new Date().getFullYear();
+    const count = gatePasses.length + 41;
+    const gatePassNumber = `GP-${year}-${String(count).padStart(4, '0')}`;
+    const issuanceNumber = `ISS-${year}-${String(count + 380).padStart(4, '0')}`;
+    const id = `gp-${Date.now()}`;
+
+    const newPass: StockIssuanceGatePass = {
+      ...data,
+      id,
+      gatePassNumber,
+      issuanceNumber,
+      status: 'issued'
+    };
+
+    setGatePasses(prev => [newPass, ...prev]);
+
+    // 1. Deduct stock for all issued items
+    setItems(prevItems => {
+      return prevItems.map(item => {
+        const passItem = data.items.find(pi => pi.itemId === item.id || pi.sku === item.sku);
+        if (passItem && passItem.quantity > 0) {
+          const newQty = Math.max(0, item.quantityOnHand - passItem.quantity);
+          return {
+            ...item,
+            quantityOnHand: newQty,
+            status: determineStockStatus(newQty, item.reorderLevel, item.safetyStock)
+          };
+        }
+        return item;
+      });
+    });
+
+    // 2. Record Stock Movements for each item
+    const nowStr = data.issueDate || new Date().toISOString().replace('T', ' ').slice(0, 16);
+    const newMovements: StockMovement[] = data.items.map(pi => {
+      const inv = items.find(i => i.id === pi.itemId || i.sku === pi.sku);
+      return {
+        id: `mov-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        movementType: 'issue',
+        itemId: pi.itemId,
+        itemName: pi.itemName,
+        sku: pi.sku,
+        quantity: -pi.quantity,
+        fromLocation: inv ? `${inv.warehouseZone} / ${inv.aisle} / ${inv.bin}` : 'Main Warehouse',
+        toLocation: `${data.department} (${data.issuedTo})`,
+        referenceNumber: gatePassNumber,
+        date: nowStr,
+        performedBy: data.issuedBy,
+        reason: `${data.passType === 'returnable' ? '[RGP-Returnable]' : '[NRGP-NonReturnable]'} ${data.purpose || 'Store stock dispatch'}`
+      };
+    });
+
+    if (newMovements.length > 0) {
+      setMovements(prev => [...newMovements, ...prev]);
+    }
+
+    return newPass;
+  };
+
+  const updateGatePassStatus = (id: string, status: GatePassStatus, officerName?: string) => {
+    const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
+    setGatePasses(prev =>
+      prev.map(gp => {
+        if (gp.id === id) {
+          const updated = { ...gp, status };
+          if (status === 'cleared_at_gate') {
+            updated.gateOutTimestamp = timestamp;
+            if (officerName) updated.securityOfficer = officerName;
+          } else if (status === 'returned') {
+            updated.gateInTimestamp = timestamp;
+          }
+          return updated;
+        }
+        return gp;
+      })
+    );
+  };
+
+  const deleteGatePass = (id: string) => {
+    setGatePasses(prev => prev.filter(gp => gp.id !== id));
+  };
+
+  const returnGatePassItems = (id: string, returnerName: string, notes?: string) => {
+    const pass = gatePasses.find(gp => gp.id === id);
+    if (!pass) return;
+
+    const timestamp = new Date().toISOString().replace('T', ' ').slice(0, 16);
+
+    // Restock items back into warehouse
+    setItems(prevItems => {
+      return prevItems.map(item => {
+        const passItem = pass.items.find(pi => pi.itemId === item.id || pi.sku === item.sku);
+        if (passItem && passItem.quantity > 0) {
+          const newQty = item.quantityOnHand + passItem.quantity;
+          return {
+            ...item,
+            quantityOnHand: newQty,
+            status: determineStockStatus(newQty, item.reorderLevel, item.safetyStock)
+          };
+        }
+        return item;
+      });
+    });
+
+    // Record return stock movements
+    const returnMovements: StockMovement[] = pass.items.map(pi => {
+      const inv = items.find(i => i.id === pi.itemId || i.sku === pi.sku);
+      return {
+        id: `mov-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+        movementType: 'receipt',
+        itemId: pi.itemId,
+        itemName: pi.itemName,
+        sku: pi.sku,
+        quantity: pi.quantity,
+        fromLocation: `${pass.department} (${returnerName})`,
+        toLocation: inv ? `${inv.warehouseZone} / ${inv.aisle} / ${inv.bin}` : 'Main Warehouse Return Bay',
+        referenceNumber: `RET-${pass.gatePassNumber}`,
+        date: timestamp,
+        performedBy: returnerName,
+        reason: `RGP Return: ${pass.gatePassNumber} - ${notes || 'Materials returned after service/use'}`
+      };
+    });
+
+    setMovements(prev => [...returnMovements, ...prev]);
+
+    // Update Gate Pass status
+    setGatePasses(prev =>
+      prev.map(gp => {
+        if (gp.id === id) {
+          return {
+            ...gp,
+            status: 'returned',
+            gateInTimestamp: timestamp,
+            remarks: notes ? `${gp.remarks || ''} [Returned on ${timestamp}: ${notes}]` : gp.remarks
+          };
+        }
+        return gp;
+      })
+    );
+  };
+
   // Reset to initial demo data
   const resetToDemoData = () => {
     setItems(INITIAL_INVENTORY);
@@ -540,12 +701,14 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setPurchaseOrders(INITIAL_POS);
     setGoodsReceiptNotes(INITIAL_GRNS);
     setMovements(INITIAL_MOVEMENTS);
+    setGatePasses(INITIAL_GATE_PASSES);
     localStorage.removeItem('pms_inventory');
     localStorage.removeItem('pms_vendors');
     localStorage.removeItem('pms_prs');
     localStorage.removeItem('pms_pos');
     localStorage.removeItem('pms_grns');
     localStorage.removeItem('pms_movements');
+    localStorage.removeItem('pms_gatepasses');
   };
 
   return (
@@ -558,6 +721,11 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         goodsReceiptNotes,
         movements,
         zones,
+        gatePasses,
+        createGatePass,
+        updateGatePassStatus,
+        deleteGatePass,
+        returnGatePassItems,
         createPR,
         editPR,
         deletePR,

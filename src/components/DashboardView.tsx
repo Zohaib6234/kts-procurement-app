@@ -10,7 +10,8 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Clock,
-  ExternalLink
+  ExternalLink,
+  Truck
 } from 'lucide-react';
 import {
   BarChart,
@@ -224,18 +225,25 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
               Review real-time vendor fulfillment rates, generate purchase orders, and monitor multi-bay utilization across WH-01 and WH-02.
             </p>
           </div>
-          <div className="mt-5 flex items-center space-x-3">
+          <div className="mt-5 flex flex-wrap items-center gap-2.5">
+            <button
+              onClick={() => onNavigate('issuance')}
+              className="bg-amber-400 hover:bg-amber-300 text-slate-950 font-bold py-2 px-3.5 rounded-xl text-xs transition-colors shadow-sm cursor-pointer flex items-center space-x-1.5"
+            >
+              <Truck className="w-3.5 h-3.5" />
+              <span>Gate Pass & Stock Issue</span>
+            </button>
             <button
               onClick={() => onNavigate('procurement')}
-              className="bg-white text-indigo-600 font-bold py-2 px-4 rounded-xl text-xs self-start hover:bg-indigo-50 transition-colors shadow-sm cursor-pointer"
+              className="bg-white text-indigo-600 font-bold py-2 px-3.5 rounded-xl text-xs self-start hover:bg-indigo-50 transition-colors shadow-sm cursor-pointer"
             >
-              Issue Purchase Order
+              Issue PO
             </button>
             <button
               onClick={() => onNavigate('audit')}
-              className="bg-indigo-700/60 hover:bg-indigo-700 text-white font-medium py-2 px-3.5 rounded-xl text-xs transition-colors border border-indigo-400/30 cursor-pointer"
+              className="bg-indigo-700/60 hover:bg-indigo-700 text-white font-medium py-2 px-3 rounded-xl text-xs transition-colors border border-indigo-400/30 cursor-pointer"
             >
-              View Audit Ledger
+              Audit Ledger
             </button>
           </div>
         </div>

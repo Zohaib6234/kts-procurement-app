@@ -5,7 +5,8 @@ import {
   PurchaseOrder,
   GoodsReceiptNote,
   StockMovement,
-  WarehouseZone
+  WarehouseZone,
+  StockIssuanceGatePass
 } from '../types';
 
 export const INITIAL_ZONES: WarehouseZone[] = [
@@ -550,3 +551,100 @@ export const INITIAL_MOVEMENTS: StockMovement[] = [
     reason: 'Physical cycle count variance: 15 damaged rolls written off'
   }
 ];
+
+export const INITIAL_GATE_PASSES: StockIssuanceGatePass[] = [
+  {
+    id: 'gp-1001',
+    gatePassNumber: 'GP-2026-0038',
+    issuanceNumber: 'ISS-2026-0419',
+    passType: 'non_returnable',
+    status: 'cleared_at_gate',
+    issueDate: '2026-08-24 09:15',
+    department: 'Plant 1 Fabrication Bay',
+    issuedTo: 'Engr. Kamran Siddiqui (Plant Lead)',
+    carrierName: 'Muhammad Rasheed (Store Porter)',
+    carrierCnic: '37405-8291043-1',
+    vehicleNumber: 'Internal Forklift FL-02',
+    purpose: 'Issued for Project Chassis Production Order #902',
+    warehouseZone: 'Z-RAW',
+    issuedBy: 'Kashif Mehmood',
+    authorizedBy: 'Tahir Abbas (Plant Manager)',
+    securityOfficer: 'Sub. Rtd. Ghulam Haider',
+    gateOutTimestamp: '2026-08-24 09:35',
+    items: [
+      {
+        itemId: 'item-1',
+        itemName: 'Stainless Steel Sheet Grade 304 (2mm)',
+        sku: 'RAW-STL-304',
+        quantity: 50,
+        unit: 'Sheets',
+        unitCost: 18500,
+        remarks: 'Batch #ST-2026-A1 for Chassis Line'
+      }
+    ],
+    remarks: 'Approved under annual fabrication material quota.'
+  },
+  {
+    id: 'gp-1002',
+    gatePassNumber: 'GP-2026-0039',
+    issuanceNumber: 'ISS-2026-0422',
+    passType: 'non_returnable',
+    status: 'cleared_at_gate',
+    issueDate: '2026-08-26 11:00',
+    department: 'Export Packaging Station',
+    issuedTo: 'Sajid Iqbal (Export Supervisor)',
+    carrierName: 'Anwar Khan',
+    carrierCnic: '42201-9923841-7',
+    vehicleNumber: 'Truck LEA-8840',
+    purpose: 'Dispatched for overseas export consignment packaging',
+    warehouseZone: 'Z-PKG',
+    issuedBy: 'Kashif Mehmood',
+    authorizedBy: 'Hassan Raza (Procurement Manager)',
+    securityOfficer: 'Muhammad Akram (Gate #2)',
+    gateOutTimestamp: '2026-08-26 11:45',
+    items: [
+      {
+        itemId: 'item-3',
+        itemName: 'Heavy Duty 5-Ply Corrugated Shipping Box',
+        sku: 'PKG-BOX-500',
+        quantity: 400,
+        unit: 'Cartons',
+        unitCost: 280,
+        remarks: 'Palletized bundles'
+      }
+    ],
+    remarks: 'Pre-inspected by QC team prior to dispatch.'
+  },
+  {
+    id: 'gp-1003',
+    gatePassNumber: 'GP-2026-0040',
+    issuanceNumber: 'ISS-2026-0430',
+    passType: 'returnable',
+    status: 'issued',
+    issueDate: '2026-09-01 14:30',
+    expectedReturnDate: '2026-09-08',
+    department: 'Apex Engineering Works (Vendor Workshop)',
+    issuedTo: 'Tariq Mehmood (Apex Steels)',
+    carrierName: 'Shahid Nadeem',
+    carrierCnic: '35202-4410293-5',
+    vehicleNumber: 'Van LZ-4190',
+    purpose: 'External dynamic precision balancing & spindle calibration',
+    warehouseZone: 'Z-SPR',
+    issuedBy: 'Kashif Mehmood',
+    authorizedBy: 'Tahir Abbas (Plant Manager)',
+    securityOfficer: 'Sub. Rtd. Ghulam Haider',
+    items: [
+      {
+        itemId: 'item-5',
+        itemName: 'Deep Groove Ball Bearing 6205-2RS',
+        sku: 'SPR-BRG-6205',
+        quantity: 10,
+        unit: 'Pieces',
+        unitCost: 1250,
+        remarks: 'To be reconditioned and tested under vendor warranty'
+      }
+    ],
+    remarks: 'Returnable within 7 business days with QA test certificate.'
+  }
+];
+

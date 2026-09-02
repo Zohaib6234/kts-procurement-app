@@ -17,7 +17,8 @@ import {
   Trash2,
   FileSpreadsheet,
   FileText,
-  Building2
+  Building2,
+  Truck
 } from 'lucide-react';
 import { useWarehouse } from '../context/WarehouseContext';
 import { InventoryItem, StockStatus } from '../types';
@@ -25,7 +26,11 @@ import { formatCurrency, formatNumber, exportToCSV } from '../utils/formatters';
 import { EditItemModal } from './EditItemModal';
 import { exportInventoryToExcel, exportInventoryToPDF } from '../utils/exportUtils';
 
-export const WarehouseView: React.FC = () => {
+interface WarehouseViewProps {
+  onNavigateToIssuance?: (itemId?: string) => void;
+}
+
+export const WarehouseView: React.FC<WarehouseViewProps> = ({ onNavigateToIssuance }) => {
   const {
     items,
     zones,
@@ -200,6 +205,16 @@ export const WarehouseView: React.FC = () => {
             <FileText className="w-3.5 h-3.5 text-rose-400" />
             <span className="hidden sm:inline">Export PDF</span>
           </button>
+          {onNavigateToIssuance && (
+            <button
+              onClick={() => onNavigateToIssuance()}
+              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-amber-600/20 hover:bg-amber-600/30 text-amber-300 hover:text-white text-xs font-semibold border border-amber-500/40 transition-all cursor-pointer shadow-xs"
+              title="Issue stock with printable Gate Pass"
+            >
+              <Truck className="w-4 h-4 text-amber-400" />
+              <span>Issue & Gate Pass</span>
+            </button>
+          )}
           <button
             onClick={() => setIsAddItemModalOpen(true)}
             className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
@@ -412,6 +427,17 @@ export const WarehouseView: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
+                        {onNavigateToIssuance && (
+                          <button
+                            onClick={() => onNavigateToIssuance(item.id)}
+                            disabled={item.quantityOnHand <= 0}
+                            className="px-2 py-1 rounded-lg bg-amber-950/70 hover:bg-amber-900 text-amber-300 font-semibold text-xs inline-flex items-center space-x-1 cursor-pointer disabled:opacity-40 transition-colors border border-amber-800/60 shadow-xs"
+                            title="Issue with official printable Gate Pass"
+                          >
+                            <Truck className="w-3 h-3" />
+                            <span>Gate Pass</span>
+                          </button>
+                        )}
                         <button
                           onClick={() => handleOpenIssue(item)}
                           disabled={item.quantityOnHand <= 0}
@@ -675,6 +701,25 @@ export const WarehouseView: React.FC = () => {
               {issueError && (
                 <div className="p-2 rounded-xl bg-rose-950/60 border border-rose-800/60 text-rose-300 text-xs font-medium">
                   {issueError}
+                </div>
+              )}
+
+              {onNavigateToIssuance && (
+                <div className="p-2.5 rounded-xl bg-amber-950/40 border border-amber-800/50 flex items-center justify-between gap-2">
+                  <div className="text-[11px] text-amber-300 leading-tight">
+                    Need an official vehicle gate pass with security clearance & printable slip?
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const id = selectedItemForAction.id;
+                      setIsIssueModalOpen(false);
+                      onNavigateToIssuance(id);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-[11px] shrink-0 cursor-pointer shadow-xs transition"
+                  >
+                    Use Gate Pass
+                  </button>
                 </div>
               )}
 
