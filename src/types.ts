@@ -26,6 +26,8 @@ export interface InventoryItem {
   bin: string;
   lastRestockedAt: string;
   status: StockStatus;
+  vendorId?: string;
+  vendorName?: string;
 }
 
 export interface Vendor {

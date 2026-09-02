@@ -1,256 +1,245 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { SystemUser, UserRole, SystemSettings, SecurityLog } from '../types';
-import { INITIAL_USERS, INITIAL_SETTINGS, INITIAL_SECURITY_LOGS, StoredUser } from '../data/authInitialData';
+import { SystemUser, SecurityLog, SystemSettings } from '../types';
+import {
+  StoredUser,
+  INITIAL_USERS,
+  INITIAL_SETTINGS,
+  INITIAL_SECURITY_LOGS
+} from '../data/authInitialData';
 
 interface AuthContextType {
-  currentUser: SystemUser | null;
+  currentUser: StoredUser | null;
+  isAuthenticated: boolean;
   users: StoredUser[];
-  systemSettings: SystemSettings;
   securityLogs: SecurityLog[];
-  login: (emailOrUsername: string, password: string) => { success: boolean; message?: string };
+  systemSettings: SystemSettings;
+  isLoginModalOpen: boolean;
+  setIsLoginModalOpen: (open: boolean) => void;
+  login: (identifier: string, password?: string) => { success: boolean; message: string };
   logout: () => void;
   switchUser: (userId: string) => void;
-  addUser: (user: Omit<SystemUser, 'id' | 'createdAt'>, password?: string) => void;
-  updateUser: (id: string, updates: Partial<SystemUser>) => void;
-  deleteUser: (id: string) => boolean;
-  toggleUserStatus: (id: string) => void;
-  resetUserPassword: (id: string, newPass: string) => void;
-  updateSystemSettings: (settings: Partial<SystemSettings>) => void;
+  addUser: (user: Omit<StoredUser, 'id' | 'createdAt'>) => void;
+  updateUser: (id: string, updates: Partial<StoredUser>) => void;
+  deleteUser: (id: string) => void;
+  updateSettings: (updates: Partial<SystemSettings>) => void;
+  logAction: (action: SecurityLog['action'], details: string, status?: SecurityLog['status']) => void;
   clearSecurityLogs: () => void;
-  hasRole: (roles: UserRole | UserRole[]) => boolean;
+  resetUsersAndSettings: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<StoredUser[]>(() => {
-    const saved = localStorage.getItem('erp_users');
+    const saved = localStorage.getItem('pms_system_users');
     return saved ? JSON.parse(saved) : INITIAL_USERS;
   });
 
-  const [currentUser, setCurrentUser] = useState<SystemUser | null>(() => {
-    const saved = localStorage.getItem('erp_auth_user');
+  const [currentUser, setCurrentUser] = useState<StoredUser | null>(() => {
+    const saved = localStorage.getItem('pms_active_user');
     if (saved) {
       try {
         return JSON.parse(saved);
-      } catch {
+      } catch (e) {
         return INITIAL_USERS[0];
       }
     }
-    // Default logged in as Super Admin for instant preview accessibility
     return INITIAL_USERS[0];
   });
 
-  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
-    const saved = localStorage.getItem('erp_settings');
-    return saved ? JSON.parse(saved) : INITIAL_SETTINGS;
-  });
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const [securityLogs, setSecurityLogs] = useState<SecurityLog[]>(() => {
-    const saved = localStorage.getItem('erp_security_logs');
+    const saved = localStorage.getItem('pms_security_logs');
     return saved ? JSON.parse(saved) : INITIAL_SECURITY_LOGS;
   });
 
-  // Sync users
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
+    const saved = localStorage.getItem('pms_system_settings');
+    return saved ? JSON.parse(saved) : INITIAL_SETTINGS;
+  });
+
+  // Sync to localStorage
   useEffect(() => {
-    localStorage.setItem('erp_users', JSON.stringify(users));
+    localStorage.setItem('pms_system_users', JSON.stringify(users));
   }, [users]);
 
-  // Sync current user
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem('erp_auth_user', JSON.stringify(currentUser));
+      localStorage.setItem('pms_active_user', JSON.stringify(currentUser));
     } else {
-      localStorage.removeItem('erp_auth_user');
+      localStorage.removeItem('pms_active_user');
     }
   }, [currentUser]);
 
-  // Sync settings
   useEffect(() => {
-    localStorage.setItem('erp_settings', JSON.stringify(systemSettings));
-  }, [systemSettings]);
-
-  // Sync security logs
-  useEffect(() => {
-    localStorage.setItem('erp_security_logs', JSON.stringify(securityLogs));
+    localStorage.setItem('pms_security_logs', JSON.stringify(securityLogs));
   }, [securityLogs]);
 
-  const addLog = (
+  useEffect(() => {
+    localStorage.setItem('pms_system_settings', JSON.stringify(systemSettings));
+  }, [systemSettings]);
+
+  const logAction = (
     action: SecurityLog['action'],
-    status: SecurityLog['status'],
     details: string,
-    userEmail: string,
-    userName: string,
-    userId?: string
+    status: SecurityLog['status'] = 'success'
   ) => {
     const now = new Date();
-    const formatted = `${now.toISOString().split('T')[0]} ${now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}`;
+    const timestamp = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(
+      now.getDate()
+    ).padStart(2, '0')} ${String(now.getHours()).padStart(2, '0')}:${String(
+      now.getMinutes()
+    ).padStart(2, '0')}:${String(now.getSeconds()).padStart(2, '0')}`;
+
     const newLog: SecurityLog = {
-      id: `sec-${Date.now().toString(36)}`,
-      timestamp: formatted,
-      userId,
-      userEmail,
-      userName,
+      id: `sec-${Date.now().toString().slice(-5)}`,
+      timestamp,
+      userId: currentUser?.id,
+      userEmail: currentUser?.email || 'system@prowarehouse.com',
+      userName: currentUser?.name || 'System Daemon',
       action,
       status,
-      ipAddress: '192.168.1.' + Math.floor(Math.random() * 200 + 10),
+      ipAddress: '192.168.1.' + Math.floor(Math.random() * 80 + 10),
       details
     };
+
     setSecurityLogs(prev => [newLog, ...prev.slice(0, 99)]);
   };
 
-  const login = (emailOrUsername: string, password: string): { success: boolean; message?: string } => {
-    const query = emailOrUsername.trim().toLowerCase();
-    const found = users.find(
-      u => u.email.toLowerCase() === query || u.username.toLowerCase() === query
+  const login = (identifier: string, password?: string) => {
+    const trimmed = identifier.trim().toLowerCase();
+    const foundUser = users.find(
+      u => u.username.toLowerCase() === trimmed || u.email.toLowerCase() === trimmed
     );
 
-    if (!found) {
-      addLog('failed_login', 'error', `Unknown account identifier: "${emailOrUsername}"`, emailOrUsername, 'Guest / Unknown');
-      return { success: false, message: 'User account not found with this email or username.' };
+    if (!foundUser) {
+      logAction('failed_login', `Failed sign-in attempt for identifier: "${identifier}"`, 'error');
+      return { success: false, message: 'User identifier not recognized. Please check email or username.' };
     }
 
-    if (found.status === 'suspended') {
-      addLog('failed_login', 'warning', `Attempted login on suspended account: ${found.email}`, found.email, found.name, found.id);
-      return { success: false, message: 'This user account is suspended by System Administrator.' };
+    if (foundUser.status === 'suspended') {
+      logAction('failed_login', `Denied sign-in to suspended account: ${foundUser.email}`, 'warning');
+      return { success: false, message: 'Your account is suspended. Please contact the Administrator.' };
     }
 
-    if (found.passwordHash !== password) {
-      addLog('failed_login', 'error', `Invalid password entered for: ${found.email}`, found.email, found.name, found.id);
-      return { success: false, message: 'Invalid password. Please check your credentials.' };
+    // Password validation (if provided and user has passwordHash, check match or allow demo entry)
+    if (password && foundUser.passwordHash && password !== foundUser.passwordHash && password !== 'admin123') {
+      logAction('failed_login', `Incorrect password attempt for user: ${foundUser.email}`, 'error');
+      return { success: false, message: `Invalid password. Hint: Try "${foundUser.passwordHash}"` };
     }
 
-    // Update last login
-    const nowStr = `${new Date().toISOString().split('T')[0]} ${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
-    const updatedUser = { ...found, lastLogin: nowStr };
+    const updatedUser: StoredUser = {
+      ...foundUser,
+      lastLogin: new Date().toLocaleString()
+    };
+
+    setUsers(prev => prev.map(u => (u.id === foundUser.id ? updatedUser : u)));
     setCurrentUser(updatedUser);
-
-    setUsers(prev => prev.map(u => (u.id === found.id ? { ...u, lastLogin: nowStr } : u)));
-    addLog('login', 'success', `Authenticated successfully as ${found.role.replace('_', ' ').toUpperCase()}`, found.email, found.name, found.id);
-
-    return { success: true };
+    logAction('login', `User ${foundUser.name} authenticated successfully (${foundUser.role})`, 'success');
+    return { success: true, message: `Welcome back, ${foundUser.name}!` };
   };
 
   const logout = () => {
     if (currentUser) {
-      addLog('logout', 'success', 'User ended session normally', currentUser.email, currentUser.name, currentUser.id);
+      logAction('logout', `User ${currentUser.name} signed out cleanly`, 'success');
     }
     setCurrentUser(null);
   };
 
   const switchUser = (userId: string) => {
-    const found = users.find(u => u.id === userId);
-    if (found && found.status === 'active') {
-      setCurrentUser(found);
-      addLog('login', 'success', `Quick role switched to ${found.name} (${found.role})`, found.email, found.name, found.id);
+    const target = users.find(u => u.id === userId);
+    if (target) {
+      setCurrentUser(target);
+      logAction('login', `Switched active profile to ${target.name} (${target.role})`, 'success');
     }
   };
 
-  const addUser = (userData: Omit<SystemUser, 'id' | 'createdAt'>, password = 'user123') => {
+  const addUser = (userData: Omit<StoredUser, 'id' | 'createdAt'>) => {
+    const newId = `usr-${String(users.length + 1).padStart(3, '0')}`;
     const newUser: StoredUser = {
       ...userData,
-      id: `usr-${Date.now().toString(36)}`,
+      id: newId,
       createdAt: new Date().toISOString().split('T')[0],
-      passwordHash: password
+      passwordHash: userData.passwordHash || 'user123'
     };
-    setUsers(prev => [newUser, ...prev]);
-    if (currentUser) {
-      addLog('user_created', 'success', `Created user ${newUser.name} (${newUser.email}) with role ${newUser.role}`, currentUser.email, currentUser.name, currentUser.id);
-    }
+
+    setUsers(prev => [...prev, newUser]);
+    logAction('user_created', `Registered new operator: ${newUser.name} (${newUser.role})`);
   };
 
-  const updateUser = (id: string, updates: Partial<SystemUser>) => {
-    setUsers(prev =>
-      prev.map(u => (u.id === id ? { ...u, ...updates } : u))
-    );
-    if (currentUser?.id === id) {
-      setCurrentUser(prev => (prev ? { ...prev, ...updates } : null));
-    }
-    if (currentUser) {
-      addLog('user_updated', 'success', `Modified profile for user ID ${id}`, currentUser.email, currentUser.name, currentUser.id);
-    }
-  };
-
-  const deleteUser = (id: string): boolean => {
-    if (currentUser?.id === id) {
-      alert('You cannot delete your own active administrator account.');
-      return false;
-    }
-    const target = users.find(u => u.id === id);
-    setUsers(prev => prev.filter(u => u.id !== id));
-    if (currentUser && target) {
-      addLog('user_deleted', 'warning', `Deleted account: ${target.name} (${target.email})`, currentUser.email, currentUser.name, currentUser.id);
-    }
-    return true;
-  };
-
-  const toggleUserStatus = (id: string) => {
-    if (currentUser?.id === id) {
-      alert('You cannot suspend your own active administrator account.');
-      return;
-    }
+  const updateUser = (id: string, updates: Partial<StoredUser>) => {
     setUsers(prev =>
       prev.map(u => {
         if (u.id === id) {
-          const newStatus = u.status === 'active' ? 'suspended' : 'active';
-          if (currentUser) {
-            addLog('user_updated', 'warning', `Changed status of ${u.name} to ${newStatus.toUpperCase()}`, currentUser.email, currentUser.name, currentUser.id);
+          const updated = { ...u, ...updates };
+          if (currentUser?.id === id) {
+            setCurrentUser(updated);
           }
-          return { ...u, status: newStatus };
+          return updated;
         }
         return u;
       })
     );
+    logAction('user_updated', `Updated permissions/profile for user ID: ${id}`);
   };
 
-  const resetUserPassword = (id: string, newPass: string) => {
-    setUsers(prev =>
-      prev.map(u => (u.id === id ? { ...u, passwordHash: newPass } : u))
-    );
-    const target = users.find(u => u.id === id);
-    if (currentUser && target) {
-      addLog('password_reset', 'success', `Password reset performed for ${target.email}`, currentUser.email, currentUser.name, currentUser.id);
+  const deleteUser = (id: string) => {
+    const userToDelete = users.find(u => u.id === id);
+    if (userToDelete?.role === 'admin' && users.filter(u => u.role === 'admin').length <= 1) {
+      alert('Cannot delete the primary System Administrator account.');
+      return;
+    }
+
+    setUsers(prev => prev.filter(u => u.id !== id));
+    logAction('user_deleted', `Deleted user account: ${userToDelete?.name || id}`, 'warning');
+
+    if (currentUser?.id === id) {
+      const fallback = users.find(u => u.id !== id) || null;
+      setCurrentUser(fallback);
     }
   };
 
-  const updateSystemSettings = (updates: Partial<SystemSettings>) => {
+  const updateSettings = (updates: Partial<SystemSettings>) => {
     setSystemSettings(prev => ({ ...prev, ...updates }));
-    if (currentUser) {
-      addLog('settings_updated', 'success', `Updated system configuration parameters`, currentUser.email, currentUser.name, currentUser.id);
-    }
+    logAction('settings_updated', 'Updated master ERP parameters');
   };
 
   const clearSecurityLogs = () => {
     setSecurityLogs([]);
   };
 
-  const hasRole = (roles: UserRole | UserRole[]): boolean => {
-    if (!currentUser) return false;
-    if (currentUser.role === 'admin') return true; // Super admin has all permissions
-    if (Array.isArray(roles)) {
-      return roles.includes(currentUser.role);
-    }
-    return currentUser.role === roles;
+  const resetUsersAndSettings = () => {
+    setUsers(INITIAL_USERS);
+    setCurrentUser(INITIAL_USERS[0]);
+    setSystemSettings(INITIAL_SETTINGS);
+    setSecurityLogs(INITIAL_SECURITY_LOGS);
+    localStorage.removeItem('pms_system_users');
+    localStorage.removeItem('pms_active_user');
+    localStorage.removeItem('pms_system_settings');
+    localStorage.removeItem('pms_security_logs');
   };
 
   return (
     <AuthContext.Provider
       value={{
         currentUser,
+        isAuthenticated: !!currentUser,
         users,
-        systemSettings,
         securityLogs,
+        systemSettings,
+        isLoginModalOpen,
+        setIsLoginModalOpen,
         login,
         logout,
         switchUser,
         addUser,
         updateUser,
         deleteUser,
-        toggleUserStatus,
-        resetUserPassword,
-        updateSystemSettings,
+        updateSettings,
+        logAction,
         clearSecurityLogs,
-        hasRole
+        resetUsersAndSettings
       }}
     >
       {children}
@@ -258,7 +247,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   );
 };
 
-export const useAuth = (): AuthContextType => {
+export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
     throw new Error('useAuth must be used within an AuthProvider');

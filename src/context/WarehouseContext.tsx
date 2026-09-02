@@ -31,6 +31,8 @@ interface WarehouseContextType {
   zones: WarehouseZone[];
   // PR operations
   createPR: (pr: Omit<PurchaseRequisition, 'id' | 'prNumber' | 'status' | 'requestDate'>) => void;
+  editPR: (id: string, updates: Partial<PurchaseRequisition>) => void;
+  deletePR: (id: string) => void;
   updatePRStatus: (id: string, status: PRStatus, approverName?: string) => void;
   convertPRToPO: (
     prId: string,
@@ -39,17 +41,21 @@ interface WarehouseContextType {
   ) => void;
   // PO operations
   createPO: (po: Omit<PurchaseOrder, 'id' | 'poNumber' | 'orderDate'>) => void;
+  editPO: (id: string, updates: Partial<PurchaseOrder>) => void;
+  deletePO: (id: string) => void;
   updatePOStatus: (id: string, status: POStatus) => void;
   // GRN & Receiving
   processGRN: (grn: Omit<GoodsReceiptNote, 'id' | 'grnNumber' | 'receivedDate'>) => void;
   // Stock operations
   addInventoryItem: (item: Omit<InventoryItem, 'id' | 'status' | 'lastRestockedAt'>) => void;
   updateInventoryItem: (id: string, updates: Partial<InventoryItem>) => void;
+  deleteInventoryItem: (id: string) => void;
   issueMaterial: (itemId: string, quantity: number, targetLocation: string, reason: string, user: string) => boolean;
   adjustStock: (itemId: string, newQuantity: number, reason: string, user: string) => void;
   // Vendor operations
   addVendor: (vendor: Omit<Vendor, 'id' | 'code' | 'totalSpent'>) => void;
   updateVendor: (id: string, updates: Partial<Vendor>) => void;
+  deleteVendor: (id: string) => void;
   // Reset
   resetToDemoData: () => void;
 }
@@ -133,6 +139,30 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       status: 'pending'
     };
     setPurchaseRequisitions(prev => [newPr, ...prev]);
+  };
+
+  // Edit PR
+  const editPR = (id: string, updates: Partial<PurchaseRequisition>) => {
+    setPurchaseRequisitions(prev =>
+      prev.map(pr => {
+        if (pr.id === id) {
+          const updated = { ...pr, ...updates };
+          if (updates.items) {
+            updated.totalEstimatedCost = updates.items.reduce(
+              (acc, item) => acc + item.quantity * item.estimatedCost,
+              0
+            );
+          }
+          return updated;
+        }
+        return pr;
+      })
+    );
+  };
+
+  // Delete PR
+  const deletePR = (id: string) => {
+    setPurchaseRequisitions(prev => prev.filter(pr => pr.id !== id));
   };
 
   // Update PR Status
@@ -229,6 +259,29 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setVendors(prev =>
       prev.map(v => (v.id === poData.vendorId ? { ...v, totalSpent: v.totalSpent + poData.grandTotal } : v))
     );
+  };
+
+  const editPO = (id: string, updates: Partial<PurchaseOrder>) => {
+    setPurchaseOrders(prev =>
+      prev.map(po => {
+        if (po.id === id) {
+          const updated = { ...po, ...updates };
+          if (updates.items) {
+            const subtotal = updates.items.reduce((acc, item) => acc + item.total, 0);
+            const taxAmount = Math.round(subtotal * 0.17);
+            updated.subtotal = subtotal;
+            updated.taxAmount = taxAmount;
+            updated.grandTotal = subtotal + taxAmount;
+          }
+          return updated;
+        }
+        return po;
+      })
+    );
+  };
+
+  const deletePO = (id: string) => {
+    setPurchaseOrders(prev => prev.filter(po => po.id !== id));
   };
 
   const updatePOStatus = (id: string, status: POStatus) => {
@@ -368,6 +421,11 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     );
   };
 
+  // Delete Inventory Item
+  const deleteInventoryItem = (id: string) => {
+    setItems(prev => prev.filter(item => item.id !== id));
+  };
+
   // Material Issue / Dispatch to Department or Production
   const issueMaterial = (itemId: string, quantity: number, targetLocation: string, reason: string, user: string): boolean => {
     const targetItem = items.find(i => i.id === itemId);
@@ -470,6 +528,10 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
     setVendors(prev => prev.map(v => (v.id === id ? { ...v, ...updates } : v)));
   };
 
+  const deleteVendor = (id: string) => {
+    setVendors(prev => prev.filter(v => v.id !== id));
+  };
+
   // Reset to initial demo data
   const resetToDemoData = () => {
     setItems(INITIAL_INVENTORY);
@@ -497,17 +559,23 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
         movements,
         zones,
         createPR,
+        editPR,
+        deletePR,
         updatePRStatus,
         convertPRToPO,
         createPO,
+        editPO,
+        deletePO,
         updatePOStatus,
         processGRN,
         addInventoryItem,
         updateInventoryItem,
+        deleteInventoryItem,
         issueMaterial,
         adjustStock,
         addVendor,
         updateVendor,
+        deleteVendor,
         resetToDemoData
       }}
     >

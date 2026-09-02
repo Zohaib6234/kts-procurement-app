@@ -12,23 +12,42 @@ import {
   AlertTriangle,
   CheckCircle2,
   Boxes,
-  MapPin
+  MapPin,
+  Pencil,
+  Trash2,
+  FileSpreadsheet,
+  FileText,
+  Building2
 } from 'lucide-react';
 import { useWarehouse } from '../context/WarehouseContext';
 import { InventoryItem, StockStatus } from '../types';
 import { formatCurrency, formatNumber, exportToCSV } from '../utils/formatters';
+import { EditItemModal } from './EditItemModal';
+import { exportInventoryToExcel, exportInventoryToPDF } from '../utils/exportUtils';
 
 export const WarehouseView: React.FC = () => {
-  const { items, zones, addInventoryItem, updateInventoryItem, issueMaterial, adjustStock } = useWarehouse();
+  const {
+    items,
+    zones,
+    vendors,
+    addInventoryItem,
+    updateInventoryItem,
+    deleteInventoryItem,
+    issueMaterial,
+    adjustStock
+  } = useWarehouse();
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [selectedZone, setSelectedZone] = useState('all');
+  const [selectedVendor, setSelectedVendor] = useState('all');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
 
   // Modals state
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
+  const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
+  const [selectedItemForEdit, setSelectedItemForEdit] = useState<InventoryItem | null>(null);
   const [isIssueModalOpen, setIsIssueModalOpen] = useState(false);
   const [isAdjustModalOpen, setIsAdjustModalOpen] = useState(false);
   const [selectedItemForAction, setSelectedItemForAction] = useState<InventoryItem | null>(null);
@@ -36,6 +55,7 @@ export const WarehouseView: React.FC = () => {
   // New Item Form State
   const [newItemSku, setNewItemSku] = useState('');
   const [newItemName, setNewItemName] = useState('');
+  const [newItemVendorId, setNewItemVendorId] = useState(vendors[0]?.id || '');
   const [newItemCategory, setNewItemCategory] = useState('Raw Materials');
   const [newItemUnit, setNewItemUnit] = useState('Pieces');
   const [newItemQty, setNewItemQty] = useState(100);
@@ -67,22 +87,28 @@ export const WarehouseView: React.FC = () => {
     const matchesSearch =
       item.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.vendorName && item.vendorName.toLowerCase().includes(searchQuery.toLowerCase())) ||
       item.bin.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'all' || item.category === selectedCategory;
     const matchesZone = selectedZone === 'all' || item.warehouseZone === selectedZone;
+    const matchesVendor = selectedVendor === 'all' || item.vendorId === selectedVendor;
     const matchesStatus = selectedStatus === 'all' || item.status === selectedStatus;
 
-    return matchesSearch && matchesCategory && matchesZone && matchesStatus;
+    return matchesSearch && matchesCategory && matchesZone && matchesVendor && matchesStatus;
   });
 
   // Handle Add Item
   const handleCreateItem = (e: React.FormEvent) => {
     e.preventDefault();
+    const assignedVendor = vendors.find(v => v.id === newItemVendorId);
+
     addInventoryItem({
       sku: newItemSku.toUpperCase(),
       name: newItemName,
       category: newItemCategory,
       unit: newItemUnit,
+      vendorId: assignedVendor?.id,
+      vendorName: assignedVendor?.name,
       quantityOnHand: Number(newItemQty),
       reservedQuantity: 0,
       reorderLevel: Number(newItemReorder),
@@ -157,7 +183,23 @@ export const WarehouseView: React.FC = () => {
             Real-time stock on hand, bin slotting locations, department material issue, and cycle audit reconciliations.
           </p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => exportInventoryToExcel(filteredItems)}
+            className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-800 transition-all cursor-pointer"
+            title="Export Stock Ledger to Excel"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">Export Excel</span>
+          </button>
+          <button
+            onClick={() => exportInventoryToPDF(filteredItems)}
+            className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-800 transition-all cursor-pointer"
+            title="Export Stock Valuation to PDF"
+          >
+            <FileText className="w-3.5 h-3.5 text-rose-400" />
+            <span className="hidden sm:inline">Export PDF</span>
+          </button>
           <button
             onClick={() => setIsAddItemModalOpen(true)}
             className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
@@ -217,16 +259,29 @@ export const WarehouseView: React.FC = () => {
       {/* Filters Bar */}
       <div className="bg-slate-900 p-4 rounded-2xl border border-slate-800 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[280px]">
-          <div className="relative flex-1 min-w-[200px]">
+          <div className="relative flex-1 min-w-[180px]">
             <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
             <input
               type="text"
-              placeholder="Search by SKU, item name, or bin..."
+              placeholder="Search by SKU, item name, vendor..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
               className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-800 text-xs bg-slate-800/70 text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
             />
           </div>
+
+          <select
+            value={selectedVendor}
+            onChange={e => setSelectedVendor(e.target.value)}
+            className="py-1.5 px-3 rounded-xl border border-slate-800 text-xs bg-slate-800/70 text-slate-200 focus:outline-none focus:border-indigo-500"
+          >
+            <option value="all">All Vendors / Suppliers</option>
+            {vendors.map(v => (
+              <option key={v.id} value={v.id}>
+                {v.code} - {v.name}
+              </option>
+            ))}
+          </select>
 
           <select
             value={selectedCategory}
@@ -279,6 +334,7 @@ export const WarehouseView: React.FC = () => {
             <thead className="bg-slate-950/60 text-slate-400 font-semibold uppercase text-[10px] tracking-wider border-b border-slate-800">
               <tr>
                 <th className="py-3 px-4">SKU & Item Details</th>
+                <th className="py-3 px-4">Vendor</th>
                 <th className="py-3 px-4">Category</th>
                 <th className="py-3 px-4 text-right">On Hand Qty</th>
                 <th className="py-3 px-4 text-right">Safety / Reorder</th>
@@ -292,7 +348,7 @@ export const WarehouseView: React.FC = () => {
             <tbody className="divide-y divide-slate-800">
               {filteredItems.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="py-10 text-center text-slate-400">
+                  <td colSpan={10} className="py-10 text-center text-slate-400">
                     No inventory items found matching your filters.
                   </td>
                 </tr>
@@ -314,6 +370,11 @@ export const WarehouseView: React.FC = () => {
                       <td className="py-3 px-4">
                         <div className="font-mono font-bold text-indigo-400">{item.sku}</div>
                         <div className="text-xs font-medium text-slate-200 mt-0.5 max-w-xs">{item.name}</div>
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="text-xs font-medium text-slate-300">
+                          {item.vendorName || 'Unassigned'}
+                        </div>
                       </td>
                       <td className="py-3 px-4">
                         <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[11px] font-medium border border-slate-700/60">
@@ -354,7 +415,7 @@ export const WarehouseView: React.FC = () => {
                         <button
                           onClick={() => handleOpenIssue(item)}
                           disabled={item.quantityOnHand <= 0}
-                          className="px-2.5 py-1 rounded-xl bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 font-semibold text-xs inline-flex items-center space-x-1 cursor-pointer disabled:opacity-40 transition-colors border border-indigo-800/60 shadow-xs"
+                          className="px-2 py-1 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 text-indigo-300 font-semibold text-xs inline-flex items-center space-x-1 cursor-pointer disabled:opacity-40 transition-colors border border-indigo-800/60 shadow-xs"
                           title="Issue material to production or department"
                         >
                           <Send className="w-3 h-3" />
@@ -362,11 +423,32 @@ export const WarehouseView: React.FC = () => {
                         </button>
                         <button
                           onClick={() => handleOpenAdjust(item)}
-                          className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs inline-flex items-center space-x-1 cursor-pointer transition-colors border border-slate-700/60"
+                          className="px-2 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs inline-flex items-center space-x-1 cursor-pointer transition-colors border border-slate-700/60"
                           title="Cycle count reconciliation"
                         >
                           <SlidersHorizontal className="w-3 h-3" />
                           <span>Audit</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setSelectedItemForEdit(item);
+                            setIsEditItemModalOpen(true);
+                          }}
+                          className="p-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer border border-slate-700/60"
+                          title="Edit Inventory Item"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Are you sure you want to delete item "${item.name}" (${item.sku})?`)) {
+                              deleteInventoryItem(item.id);
+                            }
+                          }}
+                          className="p-1 rounded-lg bg-rose-950/50 hover:bg-rose-900/60 text-rose-400 hover:text-rose-200 transition-colors cursor-pointer border border-rose-800/40"
+                          title="Delete Inventory Item"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
                         </button>
                       </td>
                     </tr>
@@ -423,6 +505,21 @@ export const WarehouseView: React.FC = () => {
                   onChange={e => setNewItemName(e.target.value)}
                   className="w-full p-2 border border-slate-700 bg-slate-800 text-white rounded-xl text-xs focus:outline-none focus:border-indigo-500"
                 />
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Primary Supplier / Vendor</label>
+                <select
+                  value={newItemVendorId}
+                  onChange={e => setNewItemVendorId(e.target.value)}
+                  className="w-full p-2 border border-slate-700 bg-slate-800 text-white rounded-xl text-xs focus:outline-none focus:border-indigo-500"
+                >
+                  {vendors.map(v => (
+                    <option key={v.id} value={v.id}>
+                      {v.code} - {v.name}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div className="grid grid-cols-3 gap-3">
@@ -741,6 +838,21 @@ export const WarehouseView: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {/* EDIT ITEM MODAL */}
+      {isEditItemModalOpen && selectedItemForEdit && (
+        <EditItemModal
+          isOpen={isEditItemModalOpen}
+          onClose={() => {
+            setIsEditItemModalOpen(false);
+            setSelectedItemForEdit(null);
+          }}
+          item={selectedItemForEdit}
+          vendors={vendors}
+          zones={zones}
+          onSave={(id, updates) => updateInventoryItem(id, updates)}
+        />
       )}
     </div>
   );

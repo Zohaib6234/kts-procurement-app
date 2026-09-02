@@ -11,12 +11,24 @@ import {
   Package,
   Calendar,
   DollarSign,
-  AlertCircle
+  AlertCircle,
+  Pencil,
+  Trash2,
+  Download,
+  FileSpreadsheet
 } from 'lucide-react';
 import { useWarehouse } from '../context/WarehouseContext';
 import { PurchaseOrder, PurchaseRequisition, UrgencyLevel, PRItem } from '../types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { PODocumentModal } from './PODocumentModal';
+import { EditPRModal } from './EditPRModal';
+import { EditPOModal } from './EditPOModal';
+import {
+  exportPRsToExcel,
+  exportPRSlipPDF,
+  exportPOsToExcel,
+  exportPOSlipPDF
+} from '../utils/exportUtils';
 import { TabType } from './Navbar';
 
 interface ProcurementViewProps {
@@ -30,9 +42,13 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
     purchaseRequisitions,
     purchaseOrders,
     createPR,
+    editPR,
+    deletePR,
     updatePRStatus,
     convertPRToPO,
-    createPO
+    createPO,
+    editPO,
+    deletePO
   } = useWarehouse();
 
   const [activeSubTab, setActiveSubTab] = useState<'pr' | 'po'>('pr');
@@ -43,6 +59,12 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
   const [isConvertModalOpen, setIsConvertModalOpen] = useState(false);
   const [selectedPRForConvert, setSelectedPRForConvert] = useState<PurchaseRequisition | null>(null);
   const [isDirectPOModalOpen, setIsDirectPOModalOpen] = useState(false);
+
+  // Edit Modals state
+  const [selectedPRForEdit, setSelectedPRForEdit] = useState<PurchaseRequisition | null>(null);
+  const [isEditPRModalOpen, setIsEditPRModalOpen] = useState(false);
+  const [selectedPOForEdit, setSelectedPOForEdit] = useState<PurchaseOrder | null>(null);
+  const [isEditPOModalOpen, setIsEditPOModalOpen] = useState(false);
 
   // Search & Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -239,23 +261,43 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
             End-to-end purchase requisitions, approval matrix, RFQ evaluation, and purchase orders.
           </p>
         </div>
-        <div className="flex items-center space-x-2">
+        <div className="flex flex-wrap items-center gap-2">
           {activeSubTab === 'pr' ? (
-            <button
-              onClick={() => setIsPRModalOpen(true)}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>New Purchase Requisition (PR)</span>
-            </button>
+            <>
+              <button
+                onClick={() => exportPRsToExcel(purchaseRequisitions)}
+                className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-800 transition-all cursor-pointer"
+                title="Export all PRs to Excel spreadsheet"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Export Excel</span>
+              </button>
+              <button
+                onClick={() => setIsPRModalOpen(true)}
+                className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>New PR</span>
+              </button>
+            </>
           ) : (
-            <button
-              onClick={() => setIsDirectPOModalOpen(true)}
-              className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Create Direct PO</span>
-            </button>
+            <>
+              <button
+                onClick={() => exportPOsToExcel(purchaseOrders)}
+                className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-800 transition-all cursor-pointer"
+                title="Export all POs to Excel spreadsheet"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Export Excel</span>
+              </button>
+              <button
+                onClick={() => setIsDirectPOModalOpen(true)}
+                className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Create Direct PO</span>
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -391,14 +433,50 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
                     )}
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-slate-800">
-                    <div className="flex justify-between items-center text-xs mb-3">
+                  <div className="mt-4 pt-3 border-t border-slate-800 space-y-2.5">
+                    <div className="flex justify-between items-center text-xs">
                       <span className="text-slate-400">Est. Total Cost:</span>
                       <span className="font-bold text-white text-sm">{formatCurrency(pr.totalEstimatedCost)}</span>
                     </div>
 
+                    {/* PR Operations Toolbar: Download PDF Slip, Edit, Delete */}
+                    <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-slate-800/60">
+                      <button
+                        onClick={() => exportPRSlipPDF(pr)}
+                        className="flex-1 flex items-center justify-center space-x-1 py-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-medium transition-colors cursor-pointer border border-slate-700/50"
+                        title="Download official PR document as PDF"
+                      >
+                        <Download className="w-3 h-3 text-indigo-400" />
+                        <span>Slip PDF</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setSelectedPRForEdit(pr);
+                          setIsEditPRModalOpen(true);
+                        }}
+                        className="flex items-center justify-center space-x-1 py-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-medium transition-colors cursor-pointer border border-slate-700/50"
+                        title="Edit PR specifications and quantities"
+                      >
+                        <Pencil className="w-3 h-3 text-amber-400" />
+                        <span>Edit</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          if (confirm(`Are you sure you want to delete Requisition ${pr.prNumber}? This cannot be undone.`)) {
+                            deletePR(pr.id);
+                          }
+                        }}
+                        className="p-1 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 hover:text-rose-200 transition-colors cursor-pointer border border-rose-800/40"
+                        title="Delete Requisition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
                     {/* Action buttons based on status */}
-                    <div className="flex space-x-2">
+                    <div className="flex space-x-2 pt-1">
                       {pr.status === 'pending' && (
                         <>
                           <button
@@ -411,6 +489,7 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
                           <button
                             onClick={() => updatePRStatus(pr.id, 'rejected')}
                             className="px-2.5 py-1.5 rounded-xl bg-rose-950/60 hover:bg-rose-900/60 text-rose-300 text-xs font-semibold cursor-pointer border border-rose-800/60 transition-colors"
+                            title="Reject PR"
                           >
                             <XCircle className="w-3.5 h-3.5" />
                           </button>
@@ -528,12 +607,43 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
                           </td>
                           <td className="py-3 px-4 text-right space-x-1.5 whitespace-nowrap">
                             <button
+                              onClick={() => exportPOSlipPDF(po)}
+                              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-400 font-semibold text-xs inline-flex items-center cursor-pointer transition-colors border border-slate-700/50"
+                              title="Download Purchase Order PDF"
+                            >
+                              <Download className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
                               onClick={() => setSelectedPOForPreview(po)}
-                              className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs inline-flex items-center space-x-1 cursor-pointer transition-colors border border-slate-700/50"
-                              title="Print / View Purchase Order"
+                              className="px-2 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs inline-flex items-center space-x-1 cursor-pointer transition-colors border border-slate-700/50"
+                              title="Print / View Purchase Order Document"
                             >
                               <Printer className="w-3.5 h-3.5" />
-                              <span>View PO</span>
+                              <span className="hidden sm:inline">View</span>
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                setSelectedPOForEdit(po);
+                                setIsEditPOModalOpen(true);
+                              }}
+                              className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-400 font-semibold text-xs inline-flex items-center cursor-pointer transition-colors border border-slate-700/50"
+                              title="Edit Purchase Order terms & items"
+                            >
+                              <Pencil className="w-3.5 h-3.5" />
+                            </button>
+
+                            <button
+                              onClick={() => {
+                                if (confirm(`Are you sure you want to delete Purchase Order ${po.poNumber}? This cannot be undone.`)) {
+                                  deletePO(po.id);
+                                }
+                              }}
+                              className="p-1.5 rounded-xl bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 hover:text-rose-200 font-semibold text-xs inline-flex items-center cursor-pointer transition-colors border border-rose-800/40"
+                              title="Delete Purchase Order"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
                             </button>
 
                             {(po.status === 'issued' || po.status === 'partially_received') && onNavigateToGRNWithPO && (
@@ -925,6 +1035,35 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
       {/* MODAL: VIEW / PRINT PURCHASE ORDER */}
       {selectedPOForPreview && (
         <PODocumentModal po={selectedPOForPreview} onClose={() => setSelectedPOForPreview(null)} />
+      )}
+
+      {/* MODAL: EDIT PURCHASE REQUISITION */}
+      {isEditPRModalOpen && selectedPRForEdit && (
+        <EditPRModal
+          isOpen={isEditPRModalOpen}
+          onClose={() => {
+            setIsEditPRModalOpen(false);
+            setSelectedPRForEdit(null);
+          }}
+          pr={selectedPRForEdit}
+          availableItems={items}
+          onSave={(id, updates) => editPR(id, updates)}
+        />
+      )}
+
+      {/* MODAL: EDIT PURCHASE ORDER */}
+      {isEditPOModalOpen && selectedPOForEdit && (
+        <EditPOModal
+          isOpen={isEditPOModalOpen}
+          onClose={() => {
+            setIsEditPOModalOpen(false);
+            setSelectedPOForEdit(null);
+          }}
+          po={selectedPOForEdit}
+          vendors={vendors}
+          availableItems={items}
+          onSave={(id, updates) => editPO(id, updates)}
+        />
       )}
     </div>
   );

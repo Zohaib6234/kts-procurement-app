@@ -11,19 +11,60 @@ import {
   MapPin,
   DollarSign,
   Briefcase,
-  AlertCircle
+  AlertCircle,
+  Pencil,
+  Trash2,
+  Package,
+  FileSpreadsheet,
+  FileText,
+  Download,
+  X,
+  Boxes
 } from 'lucide-react';
 import { useWarehouse } from '../context/WarehouseContext';
-import { Vendor, VendorStatus } from '../types';
-import { formatCurrency } from '../utils/formatters';
+import { Vendor, VendorStatus, InventoryItem } from '../types';
+import { formatCurrency, formatNumber } from '../utils/formatters';
+import { EditVendorModal } from './EditVendorModal';
+import { EditItemModal } from './EditItemModal';
+import { exportVendorsToExcel, exportVendorsToPDF, exportInventoryToExcel } from '../utils/exportUtils';
 
 export const VendorView: React.FC = () => {
-  const { vendors, purchaseOrders, addVendor, updateVendor } = useWarehouse();
+  const {
+    vendors,
+    purchaseOrders,
+    items,
+    zones,
+    addVendor,
+    updateVendor,
+    deleteVendor,
+    addInventoryItem,
+    updateInventoryItem,
+    deleteInventoryItem
+  } = useWarehouse();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedStatus, setSelectedStatus] = useState<string>('all');
   const [isAddVendorModalOpen, setIsAddVendorModalOpen] = useState(false);
   const [selectedVendorForDetail, setSelectedVendorForDetail] = useState<Vendor | null>(null);
+  const [detailTab, setDetailTab] = useState<'items' | 'orders'>('items');
+
+  // Edit Vendor State
+  const [selectedVendorForEdit, setSelectedVendorForEdit] = useState<Vendor | null>(null);
+  const [isEditVendorModalOpen, setIsEditVendorModalOpen] = useState(false);
+
+  // Edit Item State
+  const [selectedItemForEdit, setSelectedItemForEdit] = useState<InventoryItem | null>(null);
+  const [isEditItemModalOpen, setIsEditItemModalOpen] = useState(false);
+
+  // Quick Add Item for Selected Vendor
+  const [isAddItemForVendorOpen, setIsAddItemForVendorOpen] = useState(false);
+  const [vItemSku, setVItemSku] = useState('');
+  const [vItemName, setVItemName] = useState('');
+  const [vItemCategory, setVItemCategory] = useState('Raw Materials');
+  const [vItemUnit, setVItemUnit] = useState('Pieces');
+  const [vItemQty, setVItemQty] = useState(100);
+  const [vItemReorder, setVItemReorder] = useState(50);
+  const [vItemCost, setVItemCost] = useState(1200);
 
   // New Vendor Form State
   const [vendorName, setVendorName] = useState('');
@@ -47,7 +88,10 @@ export const VendorView: React.FC = () => {
 
   const handleCreateVendor = (e: React.FormEvent) => {
     e.preventDefault();
-    const categoriesArray = categoriesText.split(',').map(c => c.trim()).filter(Boolean);
+    const categoriesArray = categoriesText
+      .split(',')
+      .map(c => c.trim())
+      .filter(Boolean);
 
     addVendor({
       name: vendorName,
@@ -65,12 +109,42 @@ export const VendorView: React.FC = () => {
     });
 
     setIsAddVendorModalOpen(false);
-    // Reset
     setVendorName('');
     setContactPerson('');
     setEmail('');
     setPhone('');
     setAddress('');
+  };
+
+  const handleCreateItemForVendor = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedVendorForDetail) return;
+    if (!vItemSku || !vItemName) {
+      alert('Please provide SKU and item name.');
+      return;
+    }
+
+    addInventoryItem({
+      sku: vItemSku.toUpperCase(),
+      name: vItemName,
+      category: vItemCategory,
+      unit: vItemUnit,
+      vendorId: selectedVendorForDetail.id,
+      vendorName: selectedVendorForDetail.name,
+      quantityOnHand: Number(vItemQty) || 0,
+      reservedQuantity: 0,
+      reorderLevel: Number(vItemReorder) || 0,
+      safetyStock: Math.round((Number(vItemReorder) || 0) * 0.4),
+      unitCost: Number(vItemCost) || 0,
+      warehouseZone: 'Z-RAW',
+      aisle: 'A-01',
+      shelf: 'S-01',
+      bin: 'B-01'
+    });
+
+    setIsAddItemForVendorOpen(false);
+    setVItemSku('');
+    setVItemName('');
   };
 
   return (
@@ -80,10 +154,26 @@ export const VendorView: React.FC = () => {
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Vendor & Supplier Management</h1>
           <p className="text-xs text-slate-400">
-            Approved vendor directory, on-time delivery (OTD) scorecards, quality compliance, and procurement spend.
+            Approved vendor directory, vendor-wise item catalog, OTD scorecards, and commercial spend.
           </p>
         </div>
-        <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => exportVendorsToExcel(vendors)}
+            className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-800 transition-all cursor-pointer"
+            title="Export Vendor Directory to Excel"
+          >
+            <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-400" />
+            <span className="hidden sm:inline">Export Excel</span>
+          </button>
+          <button
+            onClick={() => exportVendorsToPDF(vendors)}
+            className="inline-flex items-center space-x-1.5 px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-semibold border border-slate-800 transition-all cursor-pointer"
+            title="Export Vendor Directory to PDF"
+          >
+            <FileText className="w-3.5 h-3.5 text-rose-400" />
+            <span className="hidden sm:inline">Export PDF</span>
+          </button>
           <button
             onClick={() => setIsAddVendorModalOpen(true)}
             className="inline-flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow-lg shadow-indigo-600/25 transition-all cursor-pointer"
@@ -116,7 +206,7 @@ export const VendorView: React.FC = () => {
             <option value="all">All Vendors</option>
             <option value="active">Active Approved</option>
             <option value="under_review">Under Review</option>
-            <option value="inactive">Inactive</option>
+            <option value="blacklisted">Blacklisted</option>
           </select>
         </div>
 
@@ -125,10 +215,11 @@ export const VendorView: React.FC = () => {
         </span>
       </div>
 
-      {/* Vendors Grid */}
+      {/* Vendors Bento Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {filteredVendors.map(vendor => {
           const vendorPOs = purchaseOrders.filter(po => po.vendorId === vendor.id);
+          const vendorItems = items.filter(i => i.vendorId === vendor.id);
 
           const statusColor =
             vendor.status === 'active'
@@ -199,23 +290,64 @@ export const VendorView: React.FC = () => {
                 {/* Categories */}
                 <div className="mt-3 flex flex-wrap gap-1">
                   {vendor.categories.map((cat, idx) => (
-                    <span key={idx} className="text-[10px] font-medium bg-slate-800 text-slate-300 px-2 py-0.5 rounded-md border border-slate-700/60">
+                    <span
+                      key={idx}
+                      className="text-[10px] font-medium bg-slate-800 text-slate-300 px-2 py-0.5 rounded-md border border-slate-700/60"
+                    >
                       {cat}
                     </span>
                   ))}
                 </div>
               </div>
 
-              <div className="mt-5 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
-                <div>
-                  <span className="text-slate-400">Cumulative Spend: </span>
-                  <span className="font-bold text-white">{formatCurrency(vendor.totalSpent)}</span>
+              {/* Vendor Actions Toolbar: Edit, Delete, Details */}
+              <div className="mt-5 pt-3 border-t border-slate-800 space-y-3">
+                <div className="flex items-center justify-between text-xs">
+                  <div>
+                    <span className="text-slate-400">Spend: </span>
+                    <span className="font-bold text-white">{formatCurrency(vendor.totalSpent)}</span>
+                  </div>
+                  <div className="flex items-center space-x-1.5">
+                    <button
+                      onClick={() => {
+                        setSelectedVendorForEdit(vendor);
+                        setIsEditVendorModalOpen(true);
+                      }}
+                      className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer border border-slate-700/50"
+                      title="Edit Vendor Credentials & Details"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => {
+                        if (
+                          confirm(
+                            `Are you sure you want to remove vendor "${vendor.name}"? This action will unbind linked records.`
+                          )
+                        ) {
+                          deleteVendor(vendor.id);
+                        }
+                      }}
+                      className="p-1.5 rounded-lg bg-rose-950/40 hover:bg-rose-900/60 text-rose-400 hover:text-rose-200 transition-colors cursor-pointer border border-rose-800/40"
+                      title="Delete Vendor"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
+
+                {/* Primary Button to inspect Vendor-wise Items & Orders */}
                 <button
-                  onClick={() => setSelectedVendorForDetail(vendor)}
-                  className="font-semibold text-indigo-400 hover:text-indigo-300 cursor-pointer transition-colors"
+                  onClick={() => {
+                    setSelectedVendorForDetail(vendor);
+                    setDetailTab('items');
+                  }}
+                  className="w-full flex items-center justify-center space-x-2 py-2 rounded-xl bg-slate-800 hover:bg-slate-750 text-indigo-300 hover:text-white text-xs font-semibold border border-slate-700/60 transition-colors cursor-pointer"
                 >
-                  Order History ({vendorPOs.length})
+                  <Boxes className="w-3.5 h-3.5 text-indigo-400" />
+                  <span>
+                    Manage Items ({vendorItems.length}) & Orders ({vendorPOs.length})
+                  </span>
                 </button>
               </div>
             </div>
@@ -234,7 +366,7 @@ export const VendorView: React.FC = () => {
 
             <form onSubmit={handleCreateVendor} className="space-y-3.5 text-xs">
               <div>
-                <label className="block text-slate-300 font-semibold mb-1">Company / Business Name</label>
+                <label className="block text-slate-300 font-semibold mb-1">Company / Business Name *</label>
                 <input
                   type="text"
                   required
@@ -247,7 +379,7 @@ export const VendorView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Contact Person</label>
+                  <label className="block text-slate-300 font-semibold mb-1">Contact Person *</label>
                   <input
                     type="text"
                     required
@@ -272,7 +404,7 @@ export const VendorView: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Email Address</label>
+                  <label className="block text-slate-300 font-semibold mb-1">Email Address *</label>
                   <input
                     type="email"
                     required
@@ -308,7 +440,9 @@ export const VendorView: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-300 font-semibold mb-1">Supplied Categories (comma separated)</label>
+                  <label className="block text-slate-300 font-semibold mb-1">
+                    Supplied Categories (comma separated)
+                  </label>
                   <input
                     type="text"
                     required
@@ -351,60 +485,311 @@ export const VendorView: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL: VENDOR ORDER HISTORY */}
+      {/* MODAL: VENDOR DETAILS & VENDOR-WISE ITEMS */}
       {selectedVendorForDetail && (
         <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-2xl w-full p-6 border border-slate-800 text-slate-100 my-8">
+          <div className="bg-slate-900 rounded-2xl shadow-2xl max-w-3xl w-full p-6 border border-slate-800 text-slate-100 my-8">
             <div className="flex justify-between items-start mb-4 border-b border-slate-800 pb-3">
               <div>
-                <span className="font-mono text-xs text-indigo-400 font-bold">{selectedVendorForDetail.code}</span>
-                <h2 className="text-lg font-bold text-white">{selectedVendorForDetail.name}</h2>
+                <div className="flex items-center space-x-2">
+                  <span className="font-mono text-xs text-indigo-400 font-bold">
+                    {selectedVendorForDetail.code}
+                  </span>
+                  <span className="text-[10px] uppercase font-bold text-emerald-300 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800/60">
+                    {selectedVendorForDetail.status}
+                  </span>
+                </div>
+                <h2 className="text-lg font-bold text-white mt-1">{selectedVendorForDetail.name}</h2>
                 <p className="text-xs text-slate-400">
-                  {selectedVendorForDetail.contactPerson} • {selectedVendorForDetail.phone}
+                  Contact: {selectedVendorForDetail.contactPerson} • {selectedVendorForDetail.phone} •{' '}
+                  {selectedVendorForDetail.email}
                 </p>
               </div>
               <button
-                onClick={() => setSelectedVendorForDetail(null)}
-                className="text-xs font-semibold text-slate-400 hover:text-white cursor-pointer"
+                onClick={() => {
+                  setSelectedVendorForDetail(null);
+                  setIsAddItemForVendorOpen(false);
+                }}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
               >
-                Close
+                <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="space-y-3">
-              <span className="text-xs font-semibold text-slate-200">Associated Purchase Orders</span>
-              {purchaseOrders.filter(po => po.vendorId === selectedVendorForDetail.id).length === 0 ? (
-                <div className="p-6 text-center text-xs text-slate-400 bg-slate-950 rounded-xl border border-slate-800">
-                  No orders generated for this vendor yet.
-                </div>
-              ) : (
-                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                  {purchaseOrders
-                    .filter(po => po.vendorId === selectedVendorForDetail.id)
-                    .map(po => (
-                      <div
-                        key={po.id}
-                        className="p-3 rounded-xl border border-slate-800 bg-slate-950 flex items-center justify-between text-xs"
-                      >
-                        <div>
-                          <span className="font-mono font-bold text-indigo-400">{po.poNumber}</span>
-                          <div className="text-[11px] text-slate-400">
-                            Issued: {po.orderDate} • Due: {po.expectedDeliveryDate}
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className="font-bold text-white">{formatCurrency(po.grandTotal)}</div>
-                          <span className="text-[10px] uppercase font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700">
-                            {po.status.replace('_', ' ')}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                </div>
+            {/* Modal Tabs: Vendor-wise Items vs Order History */}
+            <div className="flex items-center justify-between border-b border-slate-800 mb-4 pb-2">
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => setDetailTab('items')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+                    detailTab === 'items'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  Supplied Items ({items.filter(i => i.vendorId === selectedVendorForDetail.id).length})
+                </button>
+                <button
+                  onClick={() => setDetailTab('orders')}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+                    detailTab === 'orders'
+                      ? 'bg-indigo-600 text-white'
+                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                  }`}
+                >
+                  Purchase Orders ({purchaseOrders.filter(po => po.vendorId === selectedVendorForDetail.id).length})
+                </button>
+              </div>
+
+              {detailTab === 'items' && (
+                <button
+                  onClick={() => setIsAddItemForVendorOpen(!isAddItemForVendorOpen)}
+                  className="inline-flex items-center space-x-1 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold transition-colors cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Add Item for this Vendor</span>
+                </button>
               )}
             </div>
+
+            {/* TAB 1: VENDOR-WISE ITEMS */}
+            {detailTab === 'items' && (
+              <div className="space-y-4">
+                {/* Form to add item directly under this vendor */}
+                {isAddItemForVendorOpen && (
+                  <form
+                    onSubmit={handleCreateItemForVendor}
+                    className="p-4 rounded-xl bg-slate-950 border border-slate-800 space-y-3 animate-in fade-in"
+                  >
+                    <div className="text-xs font-bold text-white flex items-center justify-between">
+                      <span>Register New Catalog Item for {selectedVendorForDetail.name}</span>
+                      <button
+                        type="button"
+                        onClick={() => setIsAddItemForVendorOpen(false)}
+                        className="text-slate-400 hover:text-white"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs">
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-1">SKU *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. RAW-MET-09"
+                          value={vItemSku}
+                          onChange={e => setVItemSku(e.target.value)}
+                          className="w-full px-2.5 py-1 rounded-lg border border-slate-800 bg-slate-900 text-white text-xs uppercase font-mono"
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="block text-[10px] text-slate-400 mb-1">Item Name *</label>
+                        <input
+                          type="text"
+                          required
+                          placeholder="e.g. Zinc Coated Steel Sheets 3mm"
+                          value={vItemName}
+                          onChange={e => setVItemName(e.target.value)}
+                          className="w-full px-2.5 py-1 rounded-lg border border-slate-800 bg-slate-900 text-white text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-xs">
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-1">Category</label>
+                        <select
+                          value={vItemCategory}
+                          onChange={e => setVItemCategory(e.target.value)}
+                          className="w-full px-2 py-1 rounded-lg border border-slate-800 bg-slate-900 text-white text-xs"
+                        >
+                          <option value="Raw Materials">Raw Materials</option>
+                          <option value="Packaging">Packaging</option>
+                          <option value="Consumables">Consumables</option>
+                          <option value="Spare Parts">Spare Parts</option>
+                          <option value="Electronics">Electronics</option>
+                        </select>
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-1">Unit</label>
+                        <input
+                          type="text"
+                          required
+                          value={vItemUnit}
+                          onChange={e => setVItemUnit(e.target.value)}
+                          className="w-full px-2 py-1 rounded-lg border border-slate-800 bg-slate-900 text-white text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-1">Unit Cost (PKR)</label>
+                        <input
+                          type="number"
+                          min="0"
+                          required
+                          value={vItemCost}
+                          onChange={e => setVItemCost(Number(e.target.value))}
+                          className="w-full px-2 py-1 rounded-lg border border-slate-800 bg-slate-900 text-white text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] text-slate-400 mb-1">Opening Stock</label>
+                        <input
+                          type="number"
+                          min="0"
+                          required
+                          value={vItemQty}
+                          onChange={e => setVItemQty(Number(e.target.value))}
+                          className="w-full px-2 py-1 rounded-lg border border-slate-800 bg-slate-900 text-white text-xs"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex justify-end pt-2">
+                      <button
+                        type="submit"
+                        className="px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold cursor-pointer"
+                      >
+                        Save Item for {selectedVendorForDetail.name}
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Table of items */}
+                {items.filter(i => i.vendorId === selectedVendorForDetail.id).length === 0 ? (
+                  <div className="p-8 text-center text-xs text-slate-400 bg-slate-950 rounded-xl border border-slate-800">
+                    No items mapped to this vendor yet. Click "Add Item for this Vendor" above to register materials.
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto border border-slate-800 rounded-xl max-h-72">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-950 text-slate-400 text-[10px] uppercase font-semibold sticky top-0 border-b border-slate-800">
+                        <tr>
+                          <th className="py-2.5 px-3">SKU & Item Name</th>
+                          <th className="py-2.5 px-3">Category</th>
+                          <th className="py-2.5 px-3 text-right">In Stock</th>
+                          <th className="py-2.5 px-3 text-right">Unit Price</th>
+                          <th className="py-2.5 px-3 text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800 bg-slate-950/40">
+                        {items
+                          .filter(i => i.vendorId === selectedVendorForDetail.id)
+                          .map(item => (
+                            <tr key={item.id} className="hover:bg-slate-800/40">
+                              <td className="py-2.5 px-3">
+                                <div className="font-mono font-bold text-indigo-400">{item.sku}</div>
+                                <div className="text-slate-200">{item.name}</div>
+                              </td>
+                              <td className="py-2.5 px-3">
+                                <span className="px-2 py-0.5 rounded bg-slate-800 text-slate-300 text-[10px]">
+                                  {item.category}
+                                </span>
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-bold text-white">
+                                {formatNumber(item.quantityOnHand)} {item.unit}
+                              </td>
+                              <td className="py-2.5 px-3 text-right font-semibold text-emerald-400">
+                                {formatCurrency(item.unitCost)}
+                              </td>
+                              <td className="py-2.5 px-3 text-right space-x-1">
+                                <button
+                                  onClick={() => {
+                                    setSelectedItemForEdit(item);
+                                    setIsEditItemModalOpen(true);
+                                  }}
+                                  className="p-1 rounded bg-slate-800 hover:bg-slate-700 text-amber-400 cursor-pointer"
+                                  title="Edit Item"
+                                >
+                                  <Pencil className="w-3 h-3" />
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    if (confirm(`Delete inventory item "${item.name}" (${item.sku})?`)) {
+                                      deleteInventoryItem(item.id);
+                                    }
+                                  }}
+                                  className="p-1 rounded bg-rose-950/50 hover:bg-rose-900/60 text-rose-400 cursor-pointer"
+                                  title="Delete Item"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* TAB 2: PURCHASE ORDERS */}
+            {detailTab === 'orders' && (
+              <div className="space-y-3">
+                {purchaseOrders.filter(po => po.vendorId === selectedVendorForDetail.id).length === 0 ? (
+                  <div className="p-8 text-center text-xs text-slate-400 bg-slate-950 rounded-xl border border-slate-800">
+                    No orders generated for this vendor yet.
+                  </div>
+                ) : (
+                  <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                    {purchaseOrders
+                      .filter(po => po.vendorId === selectedVendorForDetail.id)
+                      .map(po => (
+                        <div
+                          key={po.id}
+                          className="p-3 rounded-xl border border-slate-800 bg-slate-950 flex items-center justify-between text-xs"
+                        >
+                          <div>
+                            <span className="font-mono font-bold text-indigo-400">{po.poNumber}</span>
+                            <div className="text-[11px] text-slate-400">
+                              Issued: {po.orderDate} • Due: {po.expectedDeliveryDate}
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            <div className="font-bold text-white">{formatCurrency(po.grandTotal)}</div>
+                            <span className="text-[10px] uppercase font-bold text-slate-300 bg-slate-800 px-2 py-0.5 rounded-md border border-slate-700">
+                              {po.status.replace('_', ' ')}
+                            </span>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
+      )}
+
+      {/* EDIT VENDOR MODAL */}
+      {isEditVendorModalOpen && selectedVendorForEdit && (
+        <EditVendorModal
+          isOpen={isEditVendorModalOpen}
+          onClose={() => {
+            setIsEditVendorModalOpen(false);
+            setSelectedVendorForEdit(null);
+          }}
+          vendor={selectedVendorForEdit}
+          onSave={(id, updates) => updateVendor(id, updates)}
+        />
+      )}
+
+      {/* EDIT ITEM MODAL */}
+      {isEditItemModalOpen && selectedItemForEdit && (
+        <EditItemModal
+          isOpen={isEditItemModalOpen}
+          onClose={() => {
+            setIsEditItemModalOpen(false);
+            setSelectedItemForEdit(null);
+          }}
+          item={selectedItemForEdit}
+          vendors={vendors}
+          zones={zones}
+          onSave={(id, updates) => updateInventoryItem(id, updates)}
+        />
       )}
     </div>
   );

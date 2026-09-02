@@ -121,7 +121,9 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     shelf: 'S-03',
     bin: 'B-12',
     lastRestockedAt: '2026-08-22',
-    status: 'in_stock'
+    status: 'in_stock',
+    vendorId: 'ven-1',
+    vendorName: 'Apex Industrial Steels Ltd'
   },
   {
     id: 'item-2',
@@ -139,7 +141,9 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     shelf: 'S-01',
     bin: 'B-04',
     lastRestockedAt: '2026-08-10',
-    status: 'low_stock'
+    status: 'low_stock',
+    vendorId: 'ven-1',
+    vendorName: 'Apex Industrial Steels Ltd'
   },
   {
     id: 'item-3',
@@ -157,7 +161,9 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     shelf: 'S-04',
     bin: 'B-20',
     lastRestockedAt: '2026-08-28',
-    status: 'in_stock'
+    status: 'in_stock',
+    vendorId: 'ven-2',
+    vendorName: 'PolyPack Packaging Solutions'
   },
   {
     id: 'item-4',
@@ -175,7 +181,9 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     shelf: 'S-02',
     bin: 'B-08',
     lastRestockedAt: '2026-07-29',
-    status: 'low_stock'
+    status: 'low_stock',
+    vendorId: 'ven-2',
+    vendorName: 'PolyPack Packaging Solutions'
   },
   {
     id: 'item-5',
@@ -193,7 +201,9 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     shelf: 'S-02',
     bin: 'B-15',
     lastRestockedAt: '2026-08-15',
-    status: 'in_stock'
+    status: 'in_stock',
+    vendorId: 'ven-3',
+    vendorName: 'Al-Hadeed Fasteners & Tools'
   },
   {
     id: 'item-6',
@@ -211,7 +221,9 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     shelf: 'S-05',
     bin: 'B-02',
     lastRestockedAt: '2026-08-18',
-    status: 'low_stock'
+    status: 'low_stock',
+    vendorId: 'ven-3',
+    vendorName: 'Al-Hadeed Fasteners & Tools'
   },
   {
     id: 'item-7',
@@ -229,7 +241,9 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     shelf: 'S-01',
     bin: 'B-01',
     lastRestockedAt: '2026-08-05',
-    status: 'in_stock'
+    status: 'in_stock',
+    vendorId: 'ven-4',
+    vendorName: 'Indus Valves & Fluidics'
   },
   {
     id: 'item-8',
@@ -247,7 +261,9 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     shelf: 'S-01',
     bin: 'B-07',
     lastRestockedAt: '2026-08-25',
-    status: 'in_stock'
+    status: 'in_stock',
+    vendorId: 'ven-5',
+    vendorName: 'PakSafe Industrial Equipment'
   },
   {
     id: 'item-9',
@@ -265,7 +281,9 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     shelf: 'S-02',
     bin: 'B-09',
     lastRestockedAt: '2026-07-12',
-    status: 'out_of_stock'
+    status: 'out_of_stock',
+    vendorId: 'ven-5',
+    vendorName: 'PakSafe Industrial Equipment'
   },
   {
     id: 'item-10',
@@ -283,7 +301,9 @@ export const INITIAL_INVENTORY: InventoryItem[] = [
     shelf: 'S-02',
     bin: 'B-10',
     lastRestockedAt: '2026-08-19',
-    status: 'in_stock'
+    status: 'in_stock',
+    vendorId: 'ven-1',
+    vendorName: 'Apex Industrial Steels Ltd'
   }
 ];
 

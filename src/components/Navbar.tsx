@@ -13,11 +13,17 @@ import {
   LogOut,
   ChevronDown,
   User,
-  Sparkles
+  Sparkles,
+  Sun,
+  Moon,
+  FileSpreadsheet,
+  FileText
 } from 'lucide-react';
 import { useWarehouse } from '../context/WarehouseContext';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { exportToCSV } from '../utils/formatters';
+import { exportInventoryToExcel, exportInventoryToPDF } from '../utils/exportUtils';
 
 export type TabType = 'dashboard' | 'procurement' | 'warehouse' | 'grn' | 'vendors' | 'audit' | 'admin';
 
@@ -29,13 +35,19 @@ interface NavbarProps {
 export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
   const { items, purchaseRequisitions, purchaseOrders, resetToDemoData } = useWarehouse();
   const { currentUser, users, logout, switchUser } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isExportMenuOpen, setIsExportMenuOpen] = useState(false);
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const exportMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setIsUserMenuOpen(false);
+      }
+      if (exportMenuRef.current && !exportMenuRef.current.contains(event.target as Node)) {
+        setIsExportMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -146,13 +158,83 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
               </button>
             )}
 
+            {/* Export Hub Dropdown */}
+            <div className="relative" ref={exportMenuRef}>
+              <button
+                onClick={() => setIsExportMenuOpen(!isExportMenuOpen)}
+                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-medium border border-slate-800 transition-colors cursor-pointer"
+                title="Download inventory and reports in Excel, PDF, or CSV"
+              >
+                <Download className="w-3.5 h-3.5 text-indigo-400" />
+                <span className="hidden md:inline font-medium">Export</span>
+                <ChevronDown className="w-3 h-3 text-slate-400" />
+              </button>
+
+              {isExportMenuOpen && (
+                <div className="absolute right-0 mt-2 w-56 rounded-2xl bg-slate-900 border border-slate-800 shadow-2xl p-2 text-xs z-50 animate-in fade-in">
+                  <div className="px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                    Warehouse Reports
+                  </div>
+                  <button
+                    onClick={() => {
+                      exportInventoryToExcel(items);
+                      setIsExportMenuOpen(false);
+                    }}
+                    className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-left cursor-pointer"
+                  >
+                    <FileSpreadsheet className="w-4 h-4 text-emerald-400" />
+                    <div>
+                      <div className="font-semibold">Stock Ledger (.xlsx)</div>
+                      <div className="text-[10px] text-slate-400">Excel spreadsheet report</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      exportInventoryToPDF(items);
+                      setIsExportMenuOpen(false);
+                    }}
+                    className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-left cursor-pointer"
+                  >
+                    <FileText className="w-4 h-4 text-rose-400" />
+                    <div>
+                      <div className="font-semibold">Stock Ledger (.pdf)</div>
+                      <div className="text-[10px] text-slate-400">Print-ready PDF report</div>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => {
+                      handleExportFullReport();
+                      setIsExportMenuOpen(false);
+                    }}
+                    className="w-full flex items-center space-x-2 px-2.5 py-2 rounded-xl text-slate-300 hover:text-white hover:bg-slate-800 transition-colors text-left cursor-pointer"
+                  >
+                    <Download className="w-4 h-4 text-indigo-400" />
+                    <div>
+                      <div className="font-semibold">CSV Raw Export</div>
+                      <div className="text-[10px] text-slate-400">Comma-separated values</div>
+                    </div>
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Theme Toggle (Light / Dark) */}
             <button
-              onClick={handleExportFullReport}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 hover:text-white text-xs font-medium border border-slate-800 transition-colors cursor-pointer"
-              title="Export complete inventory dataset to CSV"
+              onClick={toggleTheme}
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-800 transition-colors cursor-pointer text-xs"
+              title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
             >
-              <Download className="w-3.5 h-3.5 text-slate-400" />
-              <span className="hidden md:inline">Export Inventory CSV</span>
+              {theme === 'dark' ? (
+                <>
+                  <Sun className="w-3.5 h-3.5 text-amber-400" />
+                  <span className="hidden lg:inline text-slate-300 font-medium">Light</span>
+                </>
+              ) : (
+                <>
+                  <Moon className="w-3.5 h-3.5 text-indigo-400" />
+                  <span className="hidden lg:inline text-slate-700 font-medium">Dark</span>
+                </>
+              )}
             </button>
 
             <button

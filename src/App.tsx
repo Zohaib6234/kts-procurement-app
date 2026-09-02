@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { WarehouseProvider } from './context/WarehouseContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { Navbar, TabType } from './components/Navbar';
 import { DashboardView } from './components/DashboardView';
 import { ProcurementView } from './components/ProcurementView';
@@ -79,11 +80,13 @@ const MainApp: React.FC = () => {
 
 export default function App() {
   return (
-    <AuthProvider>
-      <WarehouseProvider>
-        <MainApp />
-      </WarehouseProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <WarehouseProvider>
+          <MainApp />
+        </WarehouseProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 
