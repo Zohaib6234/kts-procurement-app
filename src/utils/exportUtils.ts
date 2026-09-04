@@ -44,18 +44,22 @@ export const exportTableToPDF = (options: PDFExportOptions) => {
   const usableWidth = pageWidth - margin * 2;
 
   // Header Banner
-  doc.setFillColor(30, 41, 59); // slate-800
+  doc.setFillColor(9, 30, 58); // KTS deep navy #091e3a
   doc.rect(0, 0, pageWidth, 60, 'F');
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
-  doc.setFont('helvetica', 'bold');
-  doc.text('PROWAREHOUSE ERP', margin, 28);
+  // Decorative brand accent line
+  doc.setFillColor(2, 132, 199); // KTS transit cyan #0284c7
+  doc.rect(0, 57, pageWidth, 3, 'F');
 
-  doc.setFontSize(9);
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(15);
+  doc.setFont('helvetica', 'bold');
+  doc.text('KARACHI TRANSPORT SERVICE (KTS)', margin, 27);
+
+  doc.setFontSize(8.5);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(148, 163, 184); // slate-400
-  doc.text('INDUSTRIAL PROCUREMENT & WAREHOUSE INVENTORY SUITE', margin, 44);
+  doc.setTextColor(186, 230, 253); // sky-200
+  doc.text('PROCUREMENT & FLEET WAREHOUSE MANAGEMENT SYSTEM', margin, 42);
 
   const dateStr = new Date().toLocaleString();
   doc.text(`Generated: ${dateStr}`, pageWidth - margin, 44, { align: 'right' });
@@ -156,7 +160,7 @@ export const exportTableToPDF = (options: PDFExportOptions) => {
     doc.setFontSize(8);
     doc.setTextColor(148, 163, 184);
     doc.text(
-      `ProWarehouse System • Confidential Enterprise Document • Page ${i} of ${totalPages}`,
+      `Karachi Transport Service (KTS) • Fleet Procurement & Stores • Page ${i} of ${totalPages}`,
       pageWidth / 2,
       pageHeight - 15,
       { align: 'center' }
@@ -720,6 +724,39 @@ export const exportGatePassRegisterToPDF = (passes: StockIssuanceGatePass[]) => 
       { label: 'Total Issued Passes:', value: `${passes.length} passes` },
       { label: 'Returnable (RGP):', value: `${passes.filter(p => p.passType === 'returnable').length} active` },
       { label: 'Cleared Out at Gate:', value: `${passes.filter(p => p.status === 'cleared_at_gate').length} vehicles/bearers` }
+    ]
+  });
+};
+
+// -------------------------------------------------------------
+// GOODS RECEIPT NOTE (GRN) PDF EXPORT
+// -------------------------------------------------------------
+export const exportGRNSlipPDF = (grn: GoodsReceiptNote) => {
+  const headers = ['SKU', 'Item Name', 'Delivered', 'Accepted', 'Rejected', 'Location'];
+  const rows = grn.items.map(item => [
+    item.sku,
+    item.itemName,
+    formatNumber(item.deliveredQty),
+    formatNumber(item.acceptedQty),
+    formatNumber(item.rejectedQty),
+    `${item.targetZone} / ${item.targetBin}`
+  ]);
+
+  const totalDelivered = grn.items.reduce((acc, i) => acc + i.deliveredQty, 0);
+  const totalAccepted = grn.items.reduce((acc, i) => acc + i.acceptedQty, 0);
+  const totalRejected = grn.items.reduce((acc, i) => acc + i.rejectedQty, 0);
+
+  exportTableToPDF({
+    filename: `GRN_Slip_${grn.grnNumber}`,
+    title: `GOODS RECEIPT NOTE: ${grn.grnNumber}`,
+    subtitle: `PO Ref: ${grn.poNumber} | Vendor: ${grn.vendorName} | Inward Date: ${grn.receivedDate} | QC Officer: ${grn.receivedBy}`,
+    headers,
+    rows,
+    summary: [
+      { label: 'Inspection Result:', value: grn.inspectionStatus.toUpperCase() },
+      { label: 'Total Units Inspected:', value: `${formatNumber(totalDelivered)} Delivered (${formatNumber(totalAccepted)} Accepted, ${formatNumber(totalRejected)} Rejected)` },
+      { label: 'Invoice / Delivery Ref:', value: `Invoice #${grn.invoiceNumber || 'N/A'} • Vehicle #${grn.vehicleNumber || 'N/A'}` },
+      { label: 'Remarks / Comments:', value: grn.remarks || 'Sound inward condition. Accepted parts added to stock.' }
     ]
   });
 };

@@ -1,7 +1,10 @@
 import React from 'react';
-import { Printer, X, CheckCircle, Clock } from 'lucide-react';
+import { Printer, X, Download } from 'lucide-react';
 import { PurchaseOrder } from '../types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
+import { triggerDirectPrint } from '../utils/printHelper';
+import { exportPOSlipPDF } from '../utils/exportUtils';
+import { useWarehouse } from '../context/WarehouseContext';
 
 interface PODocumentModalProps {
   po: PurchaseOrder | null;
@@ -9,10 +12,16 @@ interface PODocumentModalProps {
 }
 
 export const PODocumentModal: React.FC<PODocumentModalProps> = ({ po, onClose }) => {
+  const { systemSettings } = useWarehouse();
   if (!po) return null;
 
   const handlePrint = () => {
-    window.print();
+    const el = document.getElementById(`po-print-${po.id}`);
+    if (el) {
+      triggerDirectPrint(el.innerHTML, `KTS_Purchase_Order_${po.poNumber}`);
+    } else {
+      window.print();
+    }
   };
 
   return (
@@ -22,17 +31,26 @@ export const PODocumentModal: React.FC<PODocumentModalProps> = ({ po, onClose })
         <div className="bg-slate-950 text-white px-6 py-3.5 flex items-center justify-between print:hidden border-b border-slate-800">
           <div className="flex items-center space-x-2">
             <span className="font-bold text-sm">Purchase Order Preview</span>
-            <span className="text-xs bg-slate-800 text-indigo-300 px-2 py-0.5 rounded-md font-mono border border-slate-700">
+            <span className="text-xs bg-slate-800 text-sky-300 px-2 py-0.5 rounded-md font-mono border border-slate-700">
               {po.poNumber}
             </span>
           </div>
           <div className="flex items-center space-x-2">
             <button
               onClick={handlePrint}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-xs font-semibold cursor-pointer transition-colors shadow-md shadow-indigo-600/25"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-semibold cursor-pointer transition-colors shadow-md shadow-sky-600/25"
+              title="Print PO Voucher"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Print / Save PDF</span>
+              <span>Direct Print</span>
+            </button>
+            <button
+              onClick={() => exportPOSlipPDF(po)}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer border border-slate-700 transition"
+              title="Download PDF document"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download PDF</span>
             </button>
             <button
               onClick={onClose}
@@ -44,23 +62,33 @@ export const PODocumentModal: React.FC<PODocumentModalProps> = ({ po, onClose })
         </div>
 
         {/* Printable Document Body */}
-        <div className="p-8 sm:p-10 text-slate-800 space-y-6">
+        <div id={`po-print-${po.id}`} className="p-8 sm:p-10 text-slate-800 space-y-6">
           {/* Header */}
           <div className="flex justify-between items-start border-b border-slate-200 pb-6">
-            <div>
-              <div className="flex items-center space-x-2">
-                <div className="w-9 h-9 rounded-lg bg-slate-900 text-white font-bold flex items-center justify-center text-sm">
-                  PW
-                </div>
-                <h2 className="text-xl font-black tracking-tight text-slate-900">PRO-LOGIX ENTERPRISE</h2>
+            <div className="flex items-start gap-3">
+              <div className="w-14 h-14 rounded-lg bg-white border border-slate-300 p-1 flex items-center justify-center shrink-0">
+                <img
+                  src="/kts-logo.png"
+                  alt="KTS Logo"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement!.innerHTML = '<span style="font-weight:900;font-size:14px;color:#091e3a;">KTS</span>';
+                  }}
+                />
               </div>
-              <p className="text-xs text-slate-500 mt-1">Procurement & Warehouse Supply Chain Division</p>
-              <p className="text-xs text-slate-500">Plot 104-B, Industrial Zone Sector I-9, Islamabad</p>
-              <p className="text-xs text-slate-500">NTN: 893241-7 • GST Reg: 07-01-9988-001</p>
+              <div>
+                <h2 className="text-xl font-black tracking-tight text-slate-900 uppercase">
+                  {systemSettings.companyName || 'KARACHI TRANSPORT SERVICE (KTS)'}
+                </h2>
+                <p className="text-xs text-slate-600 font-semibold mt-0.5">Procurement & Fleet Supply Chain Division</p>
+                <p className="text-xs text-slate-500">Central Bus Depot, Malir Transit Hub, Karachi • Facility: {systemSettings.facilityCode || 'KTS-MALIR-DEPOT-01'}</p>
+                <p className="text-xs text-slate-500">NTN: 893241-7 • GST Reg: 07-01-9988-001</p>
+              </div>
             </div>
 
             <div className="text-right">
-              <span className="text-2xl font-black text-blue-700 tracking-wider">PURCHASE ORDER</span>
+              <span className="text-2xl font-black text-sky-800 tracking-wider">PURCHASE ORDER</span>
               <div className="mt-2 space-y-0.5 text-xs text-slate-600">
                 <div>
                   <span className="font-semibold text-slate-800">PO Number: </span>

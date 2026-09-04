@@ -10,12 +10,14 @@ import {
   Truck,
   ShieldCheck,
   Calendar,
-  Layers
+  Layers,
+  Download
 } from 'lucide-react';
 import { useWarehouse } from '../context/WarehouseContext';
 import { GoodsReceiptNote, GRNItem, PurchaseOrder } from '../types';
 import { formatNumber } from '../utils/formatters';
 import { GRNDocumentModal } from './GRNDocumentModal';
+import { exportGRNSlipPDF } from '../utils/exportUtils';
 
 interface GRNViewProps {
   initialSelectedPOId?: string | null;
@@ -280,14 +282,22 @@ export const GRNView: React.FC<GRNViewProps> = ({ initialSelectedPOId }) => {
                         </div>
                         <div className="text-[10px] text-slate-500">By: {grn.receivedBy}</div>
                       </td>
-                      <td className="py-3 px-4 text-right whitespace-nowrap">
+                      <td className="py-3 px-4 text-right whitespace-nowrap space-x-1.5">
+                        <button
+                          onClick={() => exportGRNSlipPDF(grn)}
+                          className="p-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-emerald-400 font-semibold text-xs inline-flex items-center cursor-pointer transition-colors border border-slate-700/60"
+                          title="Download GRN Slip as PDF"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                        </button>
+
                         <button
                           onClick={() => setSelectedGRNForPreview(grn)}
                           className="px-2.5 py-1 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs inline-flex items-center space-x-1 cursor-pointer transition-colors border border-slate-700/60"
-                          title="Print / View GRN Slip"
+                          title="Direct View & Print GRN Slip"
                         >
                           <Printer className="w-3.5 h-3.5" />
-                          <span>Slip</span>
+                          <span>View & Print</span>
                         </button>
                       </td>
                     </tr>

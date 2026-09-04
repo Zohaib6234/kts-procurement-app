@@ -1,7 +1,10 @@
 import React from 'react';
-import { Printer, X, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Printer, X, Download } from 'lucide-react';
 import { GoodsReceiptNote } from '../types';
 import { formatNumber } from '../utils/formatters';
+import { triggerDirectPrint } from '../utils/printHelper';
+import { exportGRNSlipPDF } from '../utils/exportUtils';
+import { useWarehouse } from '../context/WarehouseContext';
 
 interface GRNDocumentModalProps {
   grn: GoodsReceiptNote | null;
@@ -9,10 +12,16 @@ interface GRNDocumentModalProps {
 }
 
 export const GRNDocumentModal: React.FC<GRNDocumentModalProps> = ({ grn, onClose }) => {
+  const { systemSettings } = useWarehouse();
   if (!grn) return null;
 
   const handlePrint = () => {
-    window.print();
+    const el = document.getElementById(`grn-print-${grn.id}`);
+    if (el) {
+      triggerDirectPrint(el.innerHTML, `KTS_Goods_Receipt_${grn.grnNumber}`);
+    } else {
+      window.print();
+    }
   };
 
   return (
@@ -29,10 +38,19 @@ export const GRNDocumentModal: React.FC<GRNDocumentModalProps> = ({ grn, onClose
           <div className="flex items-center space-x-2">
             <button
               onClick={handlePrint}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-semibold cursor-pointer transition-colors shadow-md shadow-emerald-600/25"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-semibold cursor-pointer transition-colors shadow-md shadow-emerald-600/25"
+              title="Print Inward Inspection Voucher"
             >
               <Printer className="w-3.5 h-3.5" />
-              <span>Print Inspection Slip</span>
+              <span>Direct Print</span>
+            </button>
+            <button
+              onClick={() => exportGRNSlipPDF(grn)}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-semibold cursor-pointer border border-slate-700 transition"
+              title="Download PDF inspection slip"
+            >
+              <Download className="w-3.5 h-3.5" />
+              <span>Download PDF</span>
             </button>
             <button
               onClick={onClose}
@@ -44,18 +62,29 @@ export const GRNDocumentModal: React.FC<GRNDocumentModalProps> = ({ grn, onClose
         </div>
 
         {/* Printable Document Body */}
-        <div className="p-8 sm:p-10 text-slate-800 space-y-6">
+        <div id={`grn-print-${grn.id}`} className="p-8 sm:p-10 text-slate-800 space-y-6">
           {/* Header */}
           <div className="flex justify-between items-start border-b border-slate-200 pb-6">
-            <div>
-              <div className="flex items-center space-x-2">
-                <div className="w-9 h-9 rounded-lg bg-emerald-700 text-white font-bold flex items-center justify-center text-sm">
-                  QC
-                </div>
-                <h2 className="text-xl font-black tracking-tight text-slate-900">PRO-LOGIX ENTERPRISE</h2>
+            <div className="flex items-start gap-3">
+              <div className="w-14 h-14 rounded-lg bg-white border border-slate-300 p-1 flex items-center justify-center shrink-0">
+                <img
+                  src="/kts-logo.png"
+                  alt="KTS Logo"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement!.innerHTML = '<span style="font-weight:900;font-size:14px;color:#091e3a;">KTS</span>';
+                  }}
+                />
               </div>
-              <p className="text-xs text-slate-500 mt-1">Quality Assurance & Inward Receiving Station</p>
-              <p className="text-xs text-slate-500">Central Logistics Bay 04, Islamabad Works</p>
+              <div>
+                <h2 className="text-xl font-black tracking-tight text-slate-900 uppercase">
+                  {systemSettings.companyName || 'KARACHI TRANSPORT SERVICE (KTS)'}
+                </h2>
+                <p className="text-xs text-slate-600 font-semibold mt-0.5">Fleet Quality Assurance & Inward Receiving Station</p>
+                <p className="text-xs text-slate-500">Central Receiving Bay 04, Malir Transit Depot, Karachi</p>
+                <p className="text-xs text-slate-500">Facility Code: {systemSettings.facilityCode || 'KTS-MALIR-DEPOT-01'}</p>
+              </div>
             </div>
 
             <div className="text-right">

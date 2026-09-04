@@ -30,6 +30,7 @@ import {
   exportGatePassRegisterToPDF
 } from '../utils/exportUtils';
 import { formatNumber } from '../utils/formatters';
+import { triggerDirectPrint } from '../utils/printHelper';
 
 export const IssuanceView: React.FC<{ preSelectedItemId?: string | null }> = ({ preSelectedItemId }) => {
   const {
@@ -964,13 +965,20 @@ export const IssuanceView: React.FC<{ preSelectedItemId?: string | null }> = ({ 
               </div>
 
               <div className="flex items-center space-x-2">
-                {/* Print button using window.print() */}
+                {/* Print button using triggerDirectPrint */}
                 <button
-                  onClick={() => window.print()}
-                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold cursor-pointer shadow-md shadow-indigo-600/25 transition"
+                  onClick={() => {
+                    const el = document.getElementById(`gatepass-print-${selectedPassForPrint.id}`);
+                    if (el) {
+                      triggerDirectPrint(el.innerHTML, `KTS_Gate_Pass_${selectedPassForPrint.gatePassNumber}`);
+                    } else {
+                      window.print();
+                    }
+                  }}
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-sky-600 hover:bg-sky-500 text-white text-xs font-bold cursor-pointer shadow-md shadow-sky-600/25 transition"
                 >
                   <Printer className="w-3.5 h-3.5" />
-                  <span>Print Slip</span>
+                  <span>Direct Print</span>
                 </button>
 
                 {/* PDF Download Button */}
@@ -1000,15 +1008,28 @@ export const IssuanceView: React.FC<{ preSelectedItemId?: string | null }> = ({ 
                 {/* Document Header */}
                 <div className="border-b-2 border-slate-900 pb-4 mb-4">
                   <div className="flex justify-between items-start">
-                    <div>
-                      <h1 className="text-xl font-black tracking-tight text-slate-950 uppercase">
-                        {systemSettings.companyName || 'PROWAREHOUSE LOGISTICS & INDUSTRIAL HUB'}
-                      </h1>
-                      <div className="text-xs font-semibold text-slate-600">
-                        CENTRAL WAREHOUSE & MATERIAL MANAGEMENT • GATE PASS
+                    <div className="flex items-center gap-3">
+                      <div className="w-14 h-14 rounded-lg bg-white border border-slate-300 p-1 flex items-center justify-center shrink-0">
+                        <img
+                          src="/kts-logo.png"
+                          alt="KTS Logo"
+                          className="w-full h-full object-contain"
+                          onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                            e.currentTarget.parentElement!.innerHTML = '<span class="font-black text-xs text-blue-900">KTS</span>';
+                          }}
+                        />
                       </div>
-                      <div className="text-[11px] text-slate-500 mt-0.5">
-                        Facility Code: {systemSettings.facilityCode || 'HUB-KHI-01'} • Regulated Outward Consignment
+                      <div>
+                        <h1 className="text-xl font-black tracking-tight text-slate-950 uppercase">
+                          {systemSettings.companyName || 'KARACHI TRANSPORT SERVICE (KTS)'}
+                        </h1>
+                        <div className="text-xs font-semibold text-slate-700">
+                          PROCUREMENT & CENTRAL FLEET WAREHOUSE • OFFICIAL MATERIAL GATE PASS
+                        </div>
+                        <div className="text-[11px] text-slate-500 mt-0.5">
+                          Facility: {systemSettings.facilityCode || 'KTS-MALIR-DEPOT-01'} • Government of Sindh Transit Partner
+                        </div>
                       </div>
                     </div>
 

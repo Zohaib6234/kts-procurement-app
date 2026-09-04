@@ -140,17 +140,35 @@ export const Navbar: React.FC<NavbarProps> = ({ currentTab, onSelectTab }) => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center space-x-3 cursor-pointer" onClick={() => onSelectTab('dashboard')}>
-            <div className="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 text-white font-bold text-lg tracking-wider">
-              PW
+            <div className="w-11 h-11 rounded-xl bg-white p-0.5 flex items-center justify-center shadow-lg shadow-sky-500/20 border border-sky-500/30 overflow-hidden shrink-0">
+              <img
+                src="/kts-logo.png"
+                alt="Karachi Transport Service (KTS) Logo"
+                className="w-full h-full object-contain"
+                onError={(e) => {
+                  // Fallback to text initials if image fails
+                  e.currentTarget.style.display = 'none';
+                  e.currentTarget.parentElement!.innerHTML = '<span class="text-blue-900 font-black text-sm tracking-tighter">KTS</span>';
+                }}
+              />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <span className="font-bold text-lg tracking-tight text-white">ProWarehouse</span>
-                <span className="text-xs uppercase px-2 py-0.5 rounded-full bg-slate-900 text-indigo-400 font-semibold border border-slate-800">
-                  Bento OS
+                <span className="font-bold text-base sm:text-lg tracking-tight text-white flex items-center gap-1.5">
+                  Karachi Transport Service
+                </span>
+                <span className="text-[10px] uppercase px-2 py-0.5 rounded-full bg-sky-950/80 text-sky-400 font-semibold border border-sky-800/60 hidden sm:inline-block">
+                  Procurement & Warehouse
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Warehouse & Procurement Operating System</p>
+              <p className="text-xs text-slate-400 flex items-center gap-1">
+                <span>Fleet Depot & Central Logistics</span>
+                <span className="text-slate-600 hidden sm:inline">•</span>
+                <span className="text-emerald-400 text-[11px] hidden sm:inline flex items-center gap-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse"></span>
+                  Cloud SQL Online
+                </span>
+              </p>
             </div>
           </div>
 

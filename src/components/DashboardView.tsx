@@ -85,9 +85,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({ onNavigate }) => {
       {/* Top Welcome & KPI Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Operations Dashboard</h1>
-          <p className="text-xs text-slate-400">
-            Real-time telemetry across Procurement Pipeline, Stock Levels, and Receiving Bay.
+          <h1 className="text-2xl font-bold text-white tracking-tight flex items-center gap-2">
+            <span>Karachi Transport Service (KTS)</span>
+            <span className="text-xs font-normal px-2.5 py-0.5 rounded-full bg-emerald-950/70 border border-emerald-800/60 text-emerald-300">
+              Cloud SQL Connected
+            </span>
+          </h1>
+          <p className="text-xs text-slate-400 mt-1">
+            Procurement & Central Depot Operations • Malir Transit Hub • Real-time Spare Parts & Gate Pass System
           </p>
         </div>
         <div className="flex items-center space-x-2.5">

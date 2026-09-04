@@ -78,9 +78,9 @@ export const INITIAL_USERS: StoredUser[] = [
 ];
 
 export const INITIAL_SETTINGS: SystemSettings = {
-  companyName: 'ProWarehouse Industrial Corp',
-  facilityCode: 'PK-LHE-WH01',
-  currencySymbol: '$',
+  companyName: 'Karachi Transport Service (KTS)',
+  facilityCode: 'KTS-MALIR-DEPOT-01',
+  currencySymbol: 'Rs.',
   reorderAlertThreshold: 20,
   autoPRGeneration: true,
   strictQCMode: true,

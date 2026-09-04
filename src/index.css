@@ -1,6 +1,16 @@
 @import "tailwindcss";
 
 /* -------------------------------------------------------------
+   KARACHI TRANSPORT SERVICE (KTS) BRAND ACCENTS
+   Matching KTS Logo: Deep Navy (#0f2a4a), Transit Cyan (#0284c7), Golden Amber
+   ------------------------------------------------------------- */
+:root {
+  --kts-navy: #091e3a;
+  --kts-blue: #0284c7;
+  --kts-cyan: #38bdf8;
+}
+
+/* -------------------------------------------------------------
    LIGHT THEME OVERRIDES (when html.light is active)
    ------------------------------------------------------------- */
 html.light {
@@ -10,6 +20,18 @@ html.light {
 html.light body {
   background-color: #f8fafc;
   color: #0f172a;
+}
+
+/* Primary Transit Action Buttons */
+.bg-indigo-600 {
+  background-color: #0284c7 !important;
+}
+.hover\:bg-indigo-500:hover {
+  background-color: #0369a1 !important;
+}
+.shadow-indigo-600\/25,
+.shadow-indigo-500\/30 {
+  box-shadow: 0 10px 15px -3px rgba(2, 132, 199, 0.25) !important;
 }
 
 /* Dark layout background overrides */

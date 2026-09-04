@@ -15,12 +15,14 @@ import {
   Pencil,
   Trash2,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Eye
 } from 'lucide-react';
 import { useWarehouse } from '../context/WarehouseContext';
 import { PurchaseOrder, PurchaseRequisition, UrgencyLevel, PRItem } from '../types';
 import { formatCurrency, formatNumber } from '../utils/formatters';
 import { PODocumentModal } from './PODocumentModal';
+import { PRDocumentModal } from './PRDocumentModal';
 import { EditPRModal } from './EditPRModal';
 import { EditPOModal } from './EditPOModal';
 import {
@@ -53,6 +55,7 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
 
   const [activeSubTab, setActiveSubTab] = useState<'pr' | 'po'>('pr');
   const [selectedPOForPreview, setSelectedPOForPreview] = useState<PurchaseOrder | null>(null);
+  const [selectedPRForPreview, setSelectedPRForPreview] = useState<PurchaseRequisition | null>(null);
 
   // Modals state
   const [isPRModalOpen, setIsPRModalOpen] = useState(false);
@@ -439,15 +442,23 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
                       <span className="font-bold text-white text-sm">{formatCurrency(pr.totalEstimatedCost)}</span>
                     </div>
 
-                    {/* PR Operations Toolbar: Download PDF Slip, Edit, Delete */}
+                    {/* PR Operations Toolbar: View & Print Slip, Download PDF, Edit, Delete */}
                     <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-slate-800/60">
                       <button
+                        onClick={() => setSelectedPRForPreview(pr)}
+                        className="flex-1 flex items-center justify-center space-x-1 py-1 px-2 rounded-lg bg-sky-900/60 hover:bg-sky-800/80 text-sky-200 hover:text-white text-[11px] font-semibold transition-colors cursor-pointer border border-sky-700/50"
+                        title="Direct View & Print Purchase Requisition Voucher"
+                      >
+                        <Printer className="w-3 h-3 text-sky-400" />
+                        <span>View & Print</span>
+                      </button>
+
+                      <button
                         onClick={() => exportPRSlipPDF(pr)}
-                        className="flex-1 flex items-center justify-center space-x-1 py-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-medium transition-colors cursor-pointer border border-slate-700/50"
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors cursor-pointer border border-slate-700/50"
                         title="Download official PR document as PDF"
                       >
-                        <Download className="w-3 h-3 text-indigo-400" />
-                        <span>Slip PDF</span>
+                        <Download className="w-3.5 h-3.5 text-indigo-400" />
                       </button>
 
                       <button
@@ -455,11 +466,10 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
                           setSelectedPRForEdit(pr);
                           setIsEditPRModalOpen(true);
                         }}
-                        className="flex items-center justify-center space-x-1 py-1 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white text-[11px] font-medium transition-colors cursor-pointer border border-slate-700/50"
+                        className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-amber-400 hover:text-amber-200 transition-colors cursor-pointer border border-slate-700/50"
                         title="Edit PR specifications and quantities"
                       >
-                        <Pencil className="w-3 h-3 text-amber-400" />
-                        <span>Edit</span>
+                        <Pencil className="w-3.5 h-3.5" />
                       </button>
 
                       <button
@@ -1035,6 +1045,11 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
       {/* MODAL: VIEW / PRINT PURCHASE ORDER */}
       {selectedPOForPreview && (
         <PODocumentModal po={selectedPOForPreview} onClose={() => setSelectedPOForPreview(null)} />
+      )}
+
+      {/* MODAL: VIEW / PRINT PURCHASE REQUISITION */}
+      {selectedPRForPreview && (
+        <PRDocumentModal pr={selectedPRForPreview} onClose={() => setSelectedPRForPreview(null)} />
       )}
 
       {/* MODAL: EDIT PURCHASE REQUISITION */}

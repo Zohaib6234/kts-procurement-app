@@ -23,6 +23,7 @@ import {
   INITIAL_ZONES,
   INITIAL_GATE_PASSES
 } from '../data/initialData';
+import { api } from '../services/api';
 
 interface WarehouseContextType {
   items: InventoryItem[];
@@ -116,10 +117,34 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const [zones] = useState<WarehouseZone[]>(INITIAL_ZONES);
 
-  // Sync to localStorage
+  // Sync to localStorage and Cloud SQL
   useEffect(() => {
     localStorage.setItem('pms_inventory', JSON.stringify(items));
   }, [items]);
+
+  // Load from Cloud SQL on initial mount
+  useEffect(() => {
+    let isMounted = true;
+    (async () => {
+      try {
+        const syncData = await api.getSyncAll();
+        if (syncData && isMounted) {
+          if (syncData.items && syncData.items.length > 0) setItems(syncData.items);
+          if (syncData.vendors && syncData.vendors.length > 0) setVendors(syncData.vendors);
+          if (syncData.requisitions && syncData.requisitions.length > 0) setPurchaseRequisitions(syncData.requisitions);
+          if (syncData.orders && syncData.orders.length > 0) setPurchaseOrders(syncData.orders);
+          if (syncData.grns && syncData.grns.length > 0) setGoodsReceiptNotes(syncData.grns);
+          if (syncData.gatePasses && syncData.gatePasses.length > 0) setGatePasses(syncData.gatePasses);
+          if (syncData.movements && syncData.movements.length > 0) setMovements(syncData.movements);
+        }
+      } catch (e) {
+        console.warn('Initial Cloud SQL sync error:', e);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('pms_vendors', JSON.stringify(vendors));
@@ -157,6 +182,7 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
       status: 'pending'
     };
     setPurchaseRequisitions(prev => [newPr, ...prev]);
+    api.savePR(newPr);
   };
 
   // Edit PR
@@ -606,7 +632,10 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
     if (newMovements.length > 0) {
       setMovements(prev => [...newMovements, ...prev]);
+      newMovements.forEach(m => api.saveMovement(m));
     }
+
+    api.saveGatePass(newPass);
 
     return newPass;
   };
@@ -623,6 +652,7 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
           } else if (status === 'returned') {
             updated.gateInTimestamp = timestamp;
           }
+          api.saveGatePass(updated);
           return updated;
         }
         return gp;
