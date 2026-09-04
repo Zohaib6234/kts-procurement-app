@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { WarehouseProvider } from './context/WarehouseContext';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -12,29 +12,46 @@ import { VendorView } from './components/VendorView';
 import { AuditLogsView } from './components/AuditLogsView';
 import { AdminView } from './components/AdminView';
 import { LoginView } from './components/LoginView';
+import { isTabAllowed, getDefaultTabForRole, getRoleConfig } from './utils/rbac';
+import { ShieldAlert, ArrowRight, Lock } from 'lucide-react';
 
 const MainApp: React.FC = () => {
   const { currentUser } = useAuth();
-  const [currentTab, setCurrentTab] = useState<TabType>('dashboard');
+  const [currentTab, setCurrentTab] = useState<TabType>(() => getDefaultTabForRole(currentUser?.role));
   const [grnSelectedPOId, setGrnSelectedPOId] = useState<string | null>(null);
   const [issuanceItemId, setIssuanceItemId] = useState<string | null>(null);
+
+  // Sync tab if active user changes (e.g. persona switch) and current tab is disallowed
+  useEffect(() => {
+    if (currentUser && !isTabAllowed(currentUser.role, currentTab)) {
+      setCurrentTab(getDefaultTabForRole(currentUser.role));
+    }
+  }, [currentUser, currentTab]);
 
   // If not authenticated, present the professional login screen
   if (!currentUser) {
     return <LoginView />;
   }
 
+  const roleConfig = getRoleConfig(currentUser.role);
+  const isAllowed = isTabAllowed(currentUser.role, currentTab);
+
   const handleNavigateToGRNWithPO = (poId: string) => {
+    if (!isTabAllowed(currentUser.role, 'grn')) return;
     setGrnSelectedPOId(poId);
     setCurrentTab('grn');
   };
 
   const handleNavigateToIssuance = (itemId?: string) => {
+    if (!isTabAllowed(currentUser.role, 'issuance')) return;
     setIssuanceItemId(itemId || null);
     setCurrentTab('issuance');
   };
 
   const handleSelectTab = (tab: TabType) => {
+    if (!isTabAllowed(currentUser.role, tab)) {
+      return;
+    }
     if (tab !== 'grn') {
       setGrnSelectedPOId(null);
     }
@@ -49,20 +66,52 @@ const MainApp: React.FC = () => {
       <Navbar currentTab={currentTab} onSelectTab={handleSelectTab} />
 
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 pt-6 pb-12">
-        {currentTab === 'dashboard' && <DashboardView onNavigate={handleSelectTab} />}
-        {currentTab === 'procurement' && (
-          <ProcurementView onNavigateToGRNWithPO={handleNavigateToGRNWithPO} />
+        {!isAllowed ? (
+          <div className="max-w-xl mx-auto my-12 p-8 rounded-3xl bg-slate-900/90 border border-slate-800 text-center shadow-2xl backdrop-blur-md">
+            <div className="w-16 h-16 rounded-2xl bg-rose-950/60 border border-rose-800/60 text-rose-400 flex items-center justify-center mx-auto mb-4">
+              <ShieldAlert className="w-8 h-8" />
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Access Restricted to Authorized Role</h2>
+            <p className="text-sm text-slate-400 mb-6 leading-relaxed">
+              Your account <span className="text-white font-semibold">{currentUser.name}</span> is assigned the{' '}
+              <span className={`px-2 py-0.5 rounded text-xs font-semibold border ${roleConfig.badgeBg}`}>
+                {roleConfig.title}
+              </span>{' '}
+              profile. You do not have permissions to access the requested module.
+            </p>
+            <div className="p-4 rounded-xl bg-slate-950 border border-slate-800/80 mb-6 text-left text-xs">
+              <div className="font-semibold text-slate-300 mb-1 flex items-center gap-1.5">
+                <Lock className="w-3.5 h-3.5 text-slate-400" />
+                <span>Your Permitted Workspaces</span>
+              </div>
+              <p className="text-slate-400">{roleConfig.description}</p>
+            </div>
+            <button
+              onClick={() => setCurrentTab(roleConfig.defaultTab)}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-semibold text-sm transition-colors shadow-lg shadow-indigo-600/30 cursor-pointer"
+            >
+              <span>Go to My Primary Workspace</span>
+              <ArrowRight className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <>
+            {currentTab === 'dashboard' && <DashboardView onNavigate={handleSelectTab} />}
+            {currentTab === 'procurement' && (
+              <ProcurementView onNavigateToGRNWithPO={handleNavigateToGRNWithPO} />
+            )}
+            {currentTab === 'warehouse' && (
+              <WarehouseView onNavigateToIssuance={handleNavigateToIssuance} />
+            )}
+            {currentTab === 'issuance' && (
+              <IssuanceView preSelectedItemId={issuanceItemId} />
+            )}
+            {currentTab === 'grn' && <GRNView initialSelectedPOId={grnSelectedPOId} />}
+            {currentTab === 'vendors' && <VendorView />}
+            {currentTab === 'audit' && <AuditLogsView />}
+            {currentTab === 'admin' && <AdminView />}
+          </>
         )}
-        {currentTab === 'warehouse' && (
-          <WarehouseView onNavigateToIssuance={handleNavigateToIssuance} />
-        )}
-        {currentTab === 'issuance' && (
-          <IssuanceView preSelectedItemId={issuanceItemId} />
-        )}
-        {currentTab === 'grn' && <GRNView initialSelectedPOId={grnSelectedPOId} />}
-        {currentTab === 'vendors' && <VendorView />}
-        {currentTab === 'audit' && <AuditLogsView />}
-        {currentTab === 'admin' && <AdminView />}
       </main>
 
       {/* Footer */}
@@ -70,8 +119,8 @@ const MainApp: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-3">
           <div className="flex items-center space-x-2">
             <span className="w-2 h-2 rounded-full bg-emerald-500"></span>
-            <span className="font-semibold text-slate-200">ProWarehouse ERP</span>
-            <span className="text-slate-500">• Bento Grid Operating Suite</span>
+            <span className="font-semibold text-slate-200">Karachi Transport Service (KTS)</span>
+            <span className="text-slate-500">• Fleet ERP & Warehouse Suite</span>
           </div>
           <div className="flex items-center space-x-4 text-slate-400 text-[11px]">
             <span className="flex items-center space-x-1">

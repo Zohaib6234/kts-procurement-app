@@ -99,7 +99,7 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
     new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
   );
   const [convertDeliveryAddress, setConvertDeliveryAddress] = useState(
-    'Main Warehouse Central Bay, Industrial Estate Islamabad'
+    'KTS Central Bus Depot, Inward Receiving Bay 3, Malir Transit Hub, Karachi'
   );
 
   // Direct PO Form State
@@ -227,8 +227,8 @@ export const ProcurementView: React.FC<ProcurementViewProps> = ({ onNavigateToGR
       taxAmount,
       grandTotal,
       paymentTerms: vendor.paymentTerms || 'Net 30',
-      shippingTerms: 'FOB Destination - Warehouse Dock',
-      deliveryAddress: 'Main Warehouse Central Bay, Islamabad'
+      shippingTerms: 'FOB Destination - KTS Depot Dock',
+      deliveryAddress: 'KTS Central Bus Depot, Inward Receiving Bay 3, Malir Transit Hub, Karachi'
     });
 
     setIsDirectPOModalOpen(false);

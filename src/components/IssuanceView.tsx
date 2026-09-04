@@ -1208,7 +1208,7 @@ export const IssuanceView: React.FC<{ preSelectedItemId?: string | null }> = ({ 
 
                 {/* Footer Barcode Simulation */}
                 <div className="mt-6 pt-3 border-t border-slate-200 flex justify-between items-center text-[10px] text-slate-400 font-mono">
-                  <span>PROWAREHOUSE ERP • GATE SYSTEM</span>
+                  <span>KARACHI TRANSPORT SERVICE (KTS) • SECURITY GATE PASS SYSTEM</span>
                   <span className="font-bold text-slate-600 tracking-widest uppercase">
                     * {selectedPassForPrint.gatePassNumber} *
                   </span>

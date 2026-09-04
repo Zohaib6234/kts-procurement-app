@@ -379,8 +379,8 @@ export const INITIAL_POS: PurchaseOrder[] = [
     taxAmount: 115600, // 17% sales tax
     grandTotal: 795600,
     paymentTerms: 'Advance 50% / Net 30',
-    shippingTerms: 'FOB Destination - Warehouse Gate 3',
-    deliveryAddress: 'Main Warehouse Central Bay, Gate 3, Industrial Estate Islamabad',
+    shippingTerms: 'FOB Destination - KTS Depot Gate 3',
+    deliveryAddress: 'KTS Central Bus Depot, Gate 3, Malir Transit Hub, Karachi',
     notes: 'Ensure MSDS safety certificate & batch analysis report is attached with consignment.'
   },
   {
@@ -399,7 +399,7 @@ export const INITIAL_POS: PurchaseOrder[] = [
     grandTotal: 2983500,
     paymentTerms: 'Net 30',
     shippingTerms: 'Delivered by Vendor Crane Truck',
-    deliveryAddress: 'Raw Materials Yard, Zone Z-RAW, Main Warehouse',
+    deliveryAddress: 'KTS Workshop Yard, Heavy Fleet Bay, Malir Transit Depot, Karachi',
     notes: 'Mill test certificate required upon each dispatch.'
   },
   {
@@ -418,7 +418,7 @@ export const INITIAL_POS: PurchaseOrder[] = [
     grandTotal: 327600,
     paymentTerms: 'Net 45',
     shippingTerms: 'Free Delivery at Warehouse Door',
-    deliveryAddress: 'Packaging Store, Zone Z-PKG, Main Warehouse'
+    deliveryAddress: 'KTS Central Stores, Inward Bay, Malir Depot, Karachi'
   }
 ];
 

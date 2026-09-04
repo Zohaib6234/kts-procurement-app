@@ -17,7 +17,7 @@ import { StoredUser } from '../data/authInitialData';
 
 export const LoginView: React.FC = () => {
   const { users, login } = useAuth();
-  const [identifier, setIdentifier] = useState('admin@prowarehouse.com');
+  const [identifier, setIdentifier] = useState('admin@kts.com.pk');
   const [password, setPassword] = useState('admin123');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -34,7 +34,7 @@ export const LoginView: React.FC = () => {
         setError(res.message || 'Login failed. Please check credentials.');
         setLoading(false);
       }
-    }, 300);
+    }, 200);
   };
 
   const handleQuickLogin = (user: StoredUser) => {
@@ -44,7 +44,7 @@ export const LoginView: React.FC = () => {
     setLoading(true);
     setTimeout(() => {
       login(user.email, user.passwordHash);
-    }, 250);
+    }, 150);
   };
 
   return (
@@ -59,17 +59,25 @@ export const LoginView: React.FC = () => {
         <div className="lg:col-span-5 bg-slate-900/90 border border-slate-800 rounded-3xl p-6 sm:p-8 flex flex-col justify-between backdrop-blur-md shadow-2xl">
           <div>
             <div className="flex items-center space-x-3 mb-6">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-600 flex items-center justify-center shadow-lg shadow-indigo-600/30 text-white font-bold text-xl tracking-wider">
-                PW
+              <div className="w-12 h-12 rounded-2xl bg-white border border-slate-700 p-1 flex items-center justify-center shadow-lg shadow-sky-600/20 shrink-0">
+                <img
+                  src="/kts-logo.png"
+                  alt="KTS Logo"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    e.currentTarget.style.display = 'none';
+                    e.currentTarget.parentElement!.innerHTML = '<span class="font-black text-xs text-blue-900">KTS</span>';
+                  }}
+                />
               </div>
               <div>
                 <div className="flex items-center space-x-2">
-                  <h1 className="text-xl font-bold text-white tracking-tight">ProWarehouse</h1>
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-indigo-950 text-indigo-300 border border-indigo-800/60">
-                    Bento OS
+                  <h1 className="text-lg font-bold text-white tracking-tight">Karachi Transport Service</h1>
+                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-md bg-sky-950 text-sky-300 border border-sky-800/60">
+                    KTS Fleet OS
                   </span>
                 </div>
-                <p className="text-xs text-slate-400">Enterprise Warehouse & Procurement</p>
+                <p className="text-xs text-slate-400">Procurement & Central Stores Depot</p>
               </div>
             </div>
 
@@ -129,7 +137,7 @@ export const LoginView: React.FC = () => {
                 <Lock className="w-3 h-3 text-indigo-400" />
                 <span>Authorized Personnel Access Only</span>
               </div>
-              <h2 className="text-2xl font-bold text-white tracking-tight">Sign In to ProWarehouse</h2>
+              <h2 className="text-2xl font-bold text-white tracking-tight">Sign In to Karachi Transport Service</h2>
               <p className="text-xs text-slate-400 mt-1">
                 Enter your credentials or choose a quick test persona below.
               </p>
@@ -154,7 +162,7 @@ export const LoginView: React.FC = () => {
                     required
                     value={identifier}
                     onChange={e => setIdentifier(e.target.value)}
-                    placeholder="e.g. admin@prowarehouse.com"
+                    placeholder="e.g. admin@kts.com.pk, warehouse, or procurement"
                     className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white text-xs placeholder-slate-500 focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-all"
                   />
                 </div>
@@ -166,7 +174,7 @@ export const LoginView: React.FC = () => {
                     Password
                   </label>
                   <span className="text-[11px] text-indigo-400 hover:underline cursor-pointer">
-                    Forgot password?
+                    Pass: admin123 / wh123 / po123
                   </span>
                 </div>
                 <div className="relative">
@@ -211,7 +219,7 @@ export const LoginView: React.FC = () => {
             <div className="flex items-center justify-between mb-2.5">
               <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 flex items-center space-x-1.5">
                 <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                <span>1-Click Test Personas (Quick Demo)</span>
+                <span>1-Click Test Personas (RBAC Scope)</span>
               </span>
               <span className="text-[10px] text-slate-500">Auto fills & signs in</span>
             </div>
@@ -224,10 +232,21 @@ export const LoginView: React.FC = () => {
                     : user.role === 'warehouse_supervisor'
                     ? 'border-emerald-500/40 text-emerald-300 bg-emerald-950/60'
                     : user.role === 'procurement_manager'
-                    ? 'border-blue-500/40 text-blue-300 bg-blue-950/60'
+                    ? 'border-sky-500/40 text-sky-300 bg-sky-950/60'
                     : user.role === 'qc_officer'
                     ? 'border-amber-500/40 text-amber-300 bg-amber-950/60'
                     : 'border-purple-500/40 text-purple-300 bg-purple-950/60';
+
+                const scopeTag =
+                  user.role === 'admin'
+                    ? 'All Modules'
+                    : user.role === 'warehouse_supervisor'
+                    ? 'Warehouse Only'
+                    : user.role === 'procurement_manager'
+                    ? 'Procurement Only'
+                    : user.role === 'qc_officer'
+                    ? 'QC Only'
+                    : 'Audit';
 
                 return (
                   <button
@@ -243,7 +262,10 @@ export const LoginView: React.FC = () => {
                         {user.role === 'admin' ? 'Admin' : user.role === 'warehouse_supervisor' ? 'WH' : user.role === 'procurement_manager' ? 'Proc' : user.role === 'qc_officer' ? 'QC' : 'Audit'}
                       </span>
                     </div>
-                    <div className="text-[10px] text-slate-400 truncate mt-0.5">
+                    <div className="text-[10px] text-slate-400 truncate mt-0.5 font-medium text-slate-300">
+                      {scopeTag}
+                    </div>
+                    <div className="text-[9px] text-slate-500 truncate mt-0.5">
                       Pass: <span className="font-mono text-slate-300">{user.passwordHash}</span>
                     </div>
                   </button>

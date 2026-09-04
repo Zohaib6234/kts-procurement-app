@@ -210,7 +210,7 @@ export const exportPRSlipPDF = (pr: PurchaseRequisition) => {
     summary: [
       { label: 'Total Requisition Amount:', value: formatCurrency(pr.totalEstimatedCost) },
       { label: 'Authorization Status:', value: pr.status === 'approved' ? `Approved by ${pr.approvedBy || 'Manager'}` : pr.status.toUpperCase() },
-      { label: 'Special Instructions:', value: pr.notes || 'Standard manufacturing replenishment' }
+      { label: 'Special Instructions:', value: pr.notes || 'Official KTS fleet maintenance & bus depot replenishment' }
     ]
   });
 };
@@ -310,7 +310,7 @@ export const exportInventoryToPDF = (items: InventoryItem[], vendorFilterName?: 
   exportTableToPDF({
     filename: `Inventory_Report_${new Date().toISOString().split('T')[0]}`,
     title: vendorFilterName ? `INVENTORY LEDGER: SUPPLIER ${vendorFilterName.toUpperCase()}` : 'WAREHOUSE INVENTORY MASTER REGISTER',
-    subtitle: `Total Active SKUs: ${items.length} | Facility: WH-Central Islamabad`,
+    subtitle: `Total Active SKUs: ${items.length} | Facility: KTS-MALIR-DEPOT-01 (Karachi)`,
     headers,
     rows,
     summary: [
@@ -420,7 +420,7 @@ export const exportAuditLogsToPDF = (logs: SecurityLog[]) => {
 // -------------------------------------------------------------
 export const exportGatePassPDF = (
   gp: StockIssuanceGatePass,
-  companyName: string = 'PROWAREHOUSE LOGISTICS & INDUSTRIAL HUB'
+  companyName: string = 'KARACHI TRANSPORT SERVICE (KTS)'
 ) => {
   const doc = new jsPDF({
     orientation: 'portrait',
@@ -435,23 +435,24 @@ export const exportGatePassPDF = (
   const isReturnable = gp.passType === 'returnable';
 
   // Header Banner
-  doc.setFillColor(isReturnable ? 15 : 30, isReturnable ? 23 : 41, isReturnable ? 42 : 59); // deep slate
+  doc.setFillColor(isReturnable ? 15 : 9, isReturnable ? 23 : 30, isReturnable ? 42 : 58); // deep navy #091e3a
   doc.rect(0, 0, pageWidth, 68, 'F');
 
   // Decorative accent line
-  doc.setFillColor(isReturnable ? 245 : 99, isReturnable ? 158 : 102, isReturnable ? 11 : 241); // amber for RGP, indigo for NRGP
+  doc.setFillColor(isReturnable ? 245 : 2, isReturnable ? 158 : 132, isReturnable ? 11 : 199); // amber for RGP, cyan #0284c7 for NRGP
   doc.rect(0, 65, pageWidth, 3, 'F');
 
   // Title
   doc.setTextColor(255, 255, 255);
-  doc.setFontSize(16);
+  doc.setFontSize(15);
   doc.setFont('helvetica', 'bold');
-  doc.text(companyName.toUpperCase(), margin, 28);
+  const orgName = (companyName || 'KARACHI TRANSPORT SERVICE (KTS)').toUpperCase();
+  doc.text(orgName, margin, 28);
 
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(203, 213, 225);
-  doc.text('CENTRAL WAREHOUSE & MATERIAL MANAGEMENT • OFFICIAL OUTWARD PASS', margin, 44);
+  doc.setTextColor(186, 230, 253);
+  doc.text('CENTRAL BUS DEPOT & FLEET MATERIAL MANAGEMENT • OFFICIAL OUTWARD PASS', margin, 44);
 
   // Pass Type Badge in top right
   const badgeText = isReturnable ? 'RETURNABLE GATE PASS (RGP)' : 'NON-RETURNABLE GATE PASS (NRGP)';
@@ -665,7 +666,7 @@ export const exportGatePassPDF = (
   doc.setFontSize(7.5);
   doc.setTextColor(148, 163, 184);
   doc.text(
-    `ProWarehouse ERP • Gate Pass Generated: ${new Date().toLocaleString()} • Document Ref: ${gp.gatePassNumber}`,
+    `Karachi Transport Service (KTS) • Gate Pass Generated: ${new Date().toLocaleString()} • Ref: ${gp.gatePassNumber}`,
     pageWidth / 2,
     pageHeight - 16,
     { align: 'center' }

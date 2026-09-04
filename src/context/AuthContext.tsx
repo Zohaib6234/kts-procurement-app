@@ -32,14 +32,46 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [users, setUsers] = useState<StoredUser[]>(() => {
     const saved = localStorage.getItem('pms_system_users');
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
+    if (!saved) return INITIAL_USERS;
+    try {
+      const parsed: StoredUser[] = JSON.parse(saved);
+      // Migrate any stale prowarehouse.com domains or missing accounts
+      const merged = INITIAL_USERS.map(initUser => {
+        const existing = parsed.find(
+          u => u.id === initUser.id || u.username.toLowerCase() === initUser.username.toLowerCase()
+        );
+        if (!existing) return initUser;
+        // Keep updated fields like KTS email and department
+        return {
+          ...existing,
+          email: initUser.email,
+          name: initUser.name,
+          role: initUser.role,
+          department: initUser.department,
+          assignedWarehouse: initUser.assignedWarehouse,
+          passwordHash: existing.passwordHash || initUser.passwordHash
+        };
+      });
+      // Also keep any custom users added via AdminView
+      const customUsers = parsed.filter(u => !INITIAL_USERS.some(init => init.id === u.id));
+      return [...merged, ...customUsers];
+    } catch {
+      return INITIAL_USERS;
+    }
   });
 
   const [currentUser, setCurrentUser] = useState<StoredUser | null>(() => {
     const saved = localStorage.getItem('pms_active_user');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed: StoredUser = JSON.parse(saved);
+        const matched = INITIAL_USERS.find(
+          u => u.id === parsed.id || u.username.toLowerCase() === parsed.username.toLowerCase()
+        );
+        if (matched) {
+          return { ...parsed, email: matched.email, role: matched.role, name: matched.name };
+        }
+        return parsed;
       } catch (e) {
         return INITIAL_USERS[0];
       }
@@ -96,8 +128,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       id: `sec-${Date.now().toString().slice(-5)}`,
       timestamp,
       userId: currentUser?.id,
-      userEmail: currentUser?.email || 'system@prowarehouse.com',
-      userName: currentUser?.name || 'System Daemon',
+      userEmail: currentUser?.email || 'system@kts.com.pk',
+      userName: currentUser?.name || 'System Operator',
       action,
       status,
       ipAddress: '192.168.1.' + Math.floor(Math.random() * 80 + 10),
@@ -109,8 +141,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const login = (identifier: string, password?: string) => {
     const trimmed = identifier.trim().toLowerCase();
+    
+    // Support aliases: 'wh' -> warehouse, 'po' -> procurement
+    let normalized = trimmed;
+    if (trimmed === 'wh' || trimmed === 'store' || trimmed === 'stores') normalized = 'warehouse';
+    if (trimmed === 'po' || trimmed === 'purchasing') normalized = 'procurement';
+    if (trimmed === 'audit' || trimmed === 'auditor') normalized = 'audit';
+
     const foundUser = users.find(
-      u => u.username.toLowerCase() === trimmed || u.email.toLowerCase() === trimmed
+      u =>
+        u.username.toLowerCase() === normalized ||
+        u.email.toLowerCase() === normalized ||
+        u.role.toLowerCase() === normalized ||
+        (normalized === 'warehouse' && u.role === 'warehouse_supervisor') ||
+        (normalized === 'procurement' && u.role === 'procurement_manager')
     );
 
     if (!foundUser) {
@@ -123,10 +167,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return { success: false, message: 'Your account is suspended. Please contact the Administrator.' };
     }
 
-    // Password validation (if provided and user has passwordHash, check match or allow demo entry)
-    if (password && foundUser.passwordHash && password !== foundUser.passwordHash && password !== 'admin123') {
+    // Password validation: allow correct password or default role demo passwords
+    const validPass =
+      !password ||
+      password === foundUser.passwordHash ||
+      password === 'admin123' ||
+      (foundUser.role === 'warehouse_supervisor' && password === 'wh123') ||
+      (foundUser.role === 'procurement_manager' && password === 'po123') ||
+      (foundUser.role === 'qc_officer' && password === 'qc123') ||
+      (foundUser.role === 'admin' && password === 'admin123');
+
+    if (!validPass) {
       logAction('failed_login', `Incorrect password attempt for user: ${foundUser.email}`, 'error');
-      return { success: false, message: `Invalid password. Hint: Try "${foundUser.passwordHash}"` };
+      return { success: false, message: `Invalid password for ${foundUser.username}. Try "${foundUser.passwordHash}".` };
     }
 
     const updatedUser: StoredUser = {

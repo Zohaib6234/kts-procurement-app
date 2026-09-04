@@ -131,7 +131,7 @@ export const PODocumentModal: React.FC<PODocumentModalProps> = ({ po, onClose })
               <span className="font-bold text-slate-900 uppercase tracking-wider text-[10px]">Delivery & Inward Dock:</span>
               <div className="font-bold text-sm text-slate-900 mt-1">{po.deliveryAddress}</div>
               <p className="text-slate-600 mt-1">Shipping Terms: {po.shippingTerms || 'FOB Destination'}</p>
-              <p className="text-slate-600 mt-2 font-medium">Receiving Bay: Central Warehouse Inward Gate</p>
+              <p className="text-slate-600 mt-2 font-medium">Receiving Bay: KTS Central Depot Inward Gate Bay 3</p>
             </div>
           </div>
 

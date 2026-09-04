@@ -97,7 +97,18 @@ export const WarehouseProvider: React.FC<{ children: React.ReactNode }> = ({ chi
 
   const [purchaseOrders, setPurchaseOrders] = useState<PurchaseOrder[]>(() => {
     const saved = localStorage.getItem('pms_pos');
-    return saved ? JSON.parse(saved) : INITIAL_POS;
+    if (!saved) return INITIAL_POS;
+    try {
+      const parsed: PurchaseOrder[] = JSON.parse(saved);
+      return parsed.map(po => ({
+        ...po,
+        deliveryAddress: po.deliveryAddress && po.deliveryAddress.includes('Islamabad')
+          ? 'KTS Central Bus Depot, Gate 3, Malir Transit Hub, Karachi'
+          : po.deliveryAddress || 'KTS Central Bus Depot, Malir Transit Hub, Karachi'
+      }));
+    } catch {
+      return INITIAL_POS;
+    }
   });
 
   const [goodsReceiptNotes, setGoodsReceiptNotes] = useState<GoodsReceiptNote[]>(() => {

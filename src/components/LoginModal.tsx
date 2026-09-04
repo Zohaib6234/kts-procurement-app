@@ -188,7 +188,7 @@ export const LoginModal: React.FC = () => {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. admin or kashif.m@falcon-erp.com"
+                  placeholder="e.g. admin@kts.com.pk or warehouse"
                   value={identifier}
                   onChange={e => setIdentifier(e.target.value)}
                   className="w-full pl-8 pr-3 py-1.5 rounded-xl border border-slate-800 bg-slate-950 text-white text-xs focus:outline-none focus:border-indigo-500"
